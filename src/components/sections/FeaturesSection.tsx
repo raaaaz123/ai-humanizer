@@ -1,6 +1,7 @@
 "use client";
 
-import { themeClasses } from "@/lib/theme";
+import { theme, themeClasses } from "@/lib/theme";
+import { useState } from "react";
 
 interface Feature {
   id: string;
@@ -81,24 +82,61 @@ const features: Feature[] = [
 ];
 
 export const FeaturesSection = () => {
+  const [hoveredFeature, setHoveredFeature] = useState<string | null>(null);
+
   return (
-    <section className={themeClasses.backgroundSecondary + " py-16 px-4"}>
+    <section className="py-20 px-4 bg-white">
       <div className="max-w-6xl mx-auto">
-        <h2 className={themeClasses.primaryText + " text-3xl font-bold mb-12 text-center"}>Key features of Natural Write</h2>
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
+            Powerful Features
+          </h2>
+          <p className={`text-[${theme.colors.textLight}] max-w-2xl mx-auto text-lg`}>
+            Transform AI-generated text into natural human writing with our advanced technology
+          </p>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature) => (
             <div 
               key={feature.id} 
-              className={themeClasses.backgroundPrimary + " p-6 rounded-lg shadow-sm border border-[#e2e8f0]"}
+              className={`p-8 rounded-xl transition-all duration-300 relative overflow-hidden
+                ${hoveredFeature === feature.id 
+                  ? 'shadow-lg transform -translate-y-1' 
+                  : 'shadow-sm hover:shadow-md border border-gray-100'}`}
+              onMouseEnter={() => setHoveredFeature(feature.id)}
+              onMouseLeave={() => setHoveredFeature(null)}
             >
-              <div className="text-[#3b82f6] mb-4">
-                {feature.icon}
+              <div 
+                className={`text-white p-3 rounded-lg mb-5 inline-flex
+                  ${hoveredFeature === feature.id 
+                    ? themeClasses.gradientBlue
+                    : `bg-[${theme.colors.primary}]`}`}
+              >
+                <div className="w-6 h-6">
+                  {feature.icon}
+                </div>
               </div>
-              <h3 className={themeClasses.primaryText + " text-xl font-semibold mb-2"}>{feature.title}</h3>
-              <p className={themeClasses.secondaryText}>{feature.description}</p>
+              
+              <h3 className={`text-xl font-semibold mb-3 text-[${theme.colors.text}]`}>
+                {feature.title}
+              </h3>
+              
+              <p className={`text-[${theme.colors.textLight}]`}>
+                {feature.description}
+              </p>
+              
+              {hoveredFeature === feature.id && (
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-300"></div>
+              )}
             </div>
           ))}
+        </div>
+        
+        <div className="mt-16 text-center">
+          <div className={`inline-block py-2 px-4 rounded-full text-sm bg-[${theme.colors.secondary}] text-[${theme.colors.primary}] font-medium`}>
+            All features available on every plan
+          </div>
         </div>
       </div>
     </section>

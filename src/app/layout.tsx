@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { AuthProvider } from "@/lib/AuthContext";
+import { CookieConsent } from "@/components/ui/cookie-consent";
+import { PostHogProvider } from "@/lib/PostHogProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,9 +33,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <Header />
-          {children}
-          <Footer />
+          <PostHogProvider>
+            <CookieConsent>
+              <Header />
+              {children}
+              <Footer />
+            </CookieConsent>
+          </PostHogProvider>
         </AuthProvider>
       </body>
     </html>

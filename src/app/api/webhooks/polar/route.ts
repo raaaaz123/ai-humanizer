@@ -1,103 +1,367 @@
-import { env } from "@/env";
-import { Webhooks } from "@polar-sh/nextjs";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from 'next/server';
+import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/webhooks';
+import { getAdminFirestore } from '@/lib/firebaseAdmin';
+import { runtime, dynamic, preferredRegion, handleApiError, createSuccessResponse } from '../../config';
 
-type PlanId = 
-  | "d3478d30-02fa-406f-bded-f4406620e644" // Basic Monthly
-  | "4a6b4d39-69de-457a-a190-672d934ce3ba" // Basic Yearly
-  | "766f9e3b-cdec-4380-8be8-e8baea7adeaf" // Pro Monthly
-  | "c997ffb8-ae50-460c-a43f-0dea553a80a6" // Pro Yearly
-  | "b0d93218-c527-46fa-ad8e-d72fac58fd78"; // Ultra Yearly
+// Export runtime configuration
+export { runtime, dynamic, preferredRegion };
 
-const PLAN_CREDITS: Record<PlanId, number> = {
-  "d3478d30-02fa-406f-bded-f4406620e644": 5000,  // Basic Monthly
-  "4a6b4d39-69de-457a-a190-672d934ce3ba": 5000,  // Basic Yearly
-  "766f9e3b-cdec-4380-8be8-e8baea7adeaf": 15000, // Pro Monthly
-  "c997ffb8-ae50-460c-a43f-0dea553a80a6": 15000, // Pro Yearly
-  "b0d93218-c527-46fa-ad8e-d72fac58fd78": 30000  // Ultra Yearly
+// Define a generic webhook event type
+type WebhookEvent = {
+  type: string;
+  data: any;
 };
 
-// Type guard for subscription payload
-function isSubscriptionPayload(data: any): data is { customer: { email: string }, subscription: { plan_id: string } } {
-  return (
-    data &&
-    typeof data === 'object' &&
-    'customer' in data &&
-    data.customer &&
-    typeof data.customer === 'object' &&
-    'email' in data.customer &&
-    typeof data.customer.email === 'string' &&
-    'subscription' in data &&
-    data.subscription &&
-    typeof data.subscription === 'object' &&
-    'plan_id' in data.subscription &&
-    typeof data.subscription.plan_id === 'string'
-  );
+// Log function for debugging
+const logWebhookEvent = (type: string, data: any) => {
+  const timestamp = new Date().toISOString();
+  console.log(`WEBHOOK ${type} [${timestamp}]:`, JSON.stringify(data, null, 2));
+};
+
+// Add a GET handler for testing the route
+export async function GET(req: NextRequest) {
+  console.log('WEBHOOK TEST GET REQUEST RECEIVED');
+  return createSuccessResponse({ 
+    message: 'Polar webhook endpoint is active',
+    timestamp: new Date().toISOString() 
+  });
 }
 
-// Type guard for customer payload
-function isCustomerPayload(data: any): data is { customer: { email: string } } {
-  return (
-    data &&
-    typeof data === 'object' &&
-    'customer' in data &&
-    data.customer &&
-    typeof data.customer === 'object' &&
-    'email' in data.customer &&
-    typeof data.customer.email === 'string'
-  );
-}
-
-export const POST = Webhooks({
-  webhookSecret: env.POLAR_WEBHOOK_SECRET,
-  onPayload: async (payload) => {
+export async function POST(req: NextRequest) {
+  console.log('WEBHOOK RECEIVED [' + new Date().toISOString() + ']');
+  
+  try {
+    // Get the raw body as a buffer
+    const rawBody = await req.text();
+    console.log('WEBHOOK RAW BODY:', rawBody.substring(0, 200) + '...');
+    
+    // Get headers for verification
+    const signature = req.headers.get('polar-signature');
+    const timestamp = req.headers.get('polar-timestamp');
+    
+    console.log('WEBHOOK HEADERS:', {
+      signature: signature ? signature.substring(0, 10) + '...' : null,
+      timestamp
+    });
+    
+    // Parse the raw body as JSON
+    let jsonBody;
     try {
-      console.log('Received webhook payload:', payload.type);
+      jsonBody = JSON.parse(rawBody);
+      console.log('WEBHOOK JSON BODY:', {
+        type: jsonBody.type,
+        dataPreview: jsonBody.data ? JSON.stringify(jsonBody.data).substring(0, 100) + '...' : null
+      });
+    } catch (parseError) {
+      console.log('JSON PARSE ERROR:', parseError instanceof Error ? parseError.message : 'Unknown error');
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    
+    // Development mode - still process the event
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    if (isDevelopment) {
+      console.log('DEVELOPMENT MODE: Processing event');
       
-      // Handle different event types
-      if (payload.type === 'subscription.created' || payload.type === 'subscription.active') {
-        // For subscription events
-        if (isSubscriptionPayload(payload.data)) {
-          const customerEmail = payload.data.customer.email;
-          const subscriptionId = payload.data.subscription.plan_id as PlanId;
-          
-          const credits = PLAN_CREDITS[subscriptionId] || 5000;
-          
-          await prisma.user.update({
-            where: { email: customerEmail },
-            data: {
-              subscription: subscriptionId,
-              credits: { increment: credits },
-              subscriptionStatus: 'active',
-              subscriptionUpdatedAt: new Date(),
-              lastRenewalDate: new Date()
-            },
-          });
-          console.log(`Subscription activated for ${customerEmail} with ${credits} credits`);
-        }
-      } 
-      else if (payload.type === 'subscription.canceled' || payload.type === 'subscription.revoked') {
-        // For cancellation events
-        if (isCustomerPayload(payload.data)) {
-          const customerEmail = payload.data.customer.email;
-          
-          await prisma.user.update({
-            where: { email: customerEmail },
-            data: {
-              subscriptionStatus: 'cancelled',
-              subscriptionUpdatedAt: new Date(),
-              cancellationDate: new Date()
-            },
-          });
-          console.log(`Subscription cancelled for ${customerEmail}`);
-        }
+      try {
+        // Log the event data
+        logWebhookEvent(jsonBody.type, jsonBody.data);
+        
+        // Process the event
+        await processEvent(jsonBody);
+        
+        console.log('WEBHOOK PROCESSED SUCCESSFULLY (DEV MODE)');
+        return createSuccessResponse({ mode: 'development' }, 202);
+      } catch (devError) {
+        console.log('DEV MODE ERROR:', devError instanceof Error ? devError.message : 'Unknown error');
+        return NextResponse.json({ 
+          error: 'Failed to process webhook in development mode',
+          details: devError instanceof Error ? devError.message : 'Unknown error'
+        }, { status: 400 });
       }
-      else {
-        console.log(`Unhandled event type ${payload.type}`);
-      }
+    }
+    
+    // Production mode - validate signature
+    if (!signature || !timestamp) {
+      logWebhookEvent('ERROR', { message: 'Missing signature or timestamp header' });
+      return NextResponse.json({ error: 'Missing required headers' }, { status: 400 });
+    }
+    
+    // Get webhook secret from environment variables
+    const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      logWebhookEvent('ERROR', { message: 'Webhook secret not configured' });
+      return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+    }
+    
+    try {
+      // Validate the webhook event
+      const headers = {
+        'polar-signature': signature,
+        'polar-timestamp': timestamp
+      };
+      
+      // Validate the event
+      const event = validateEvent(
+        jsonBody,
+        headers,
+        webhookSecret
+      ) as WebhookEvent;
+      
+      // Log the event for debugging
+      logWebhookEvent('RECEIVED', {
+        type: event.type,
+        data: event.data
+      });
+      
+      // Return success without processing the event for now
+      console.log('WEBHOOK RECEIVED SUCCESSFULLY - SKIPPING PROCESSING');
+      return createSuccessResponse({}, 202);
     } catch (error) {
-      console.error('Error processing webhook:', error);
+      if (error instanceof WebhookVerificationError) {
+        logWebhookEvent('VERIFICATION_ERROR', {
+          error: error.message,
+          rawBody: rawBody.substring(0, 100) + '...'
+        });
+        console.log('WEBHOOK VERIFICATION ERROR:', error.message);
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+      }
+      
+      // Log other errors
+      logWebhookEvent('ERROR', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : null
+      });
+      
+      console.log('WEBHOOK ERROR:', error instanceof Error ? error.message : 'Unknown error');
+      
       throw error;
     }
+  } catch (error) {
+    logWebhookEvent('UNHANDLED_ERROR', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : null
+    });
+    
+    console.log('WEBHOOK UNHANDLED ERROR:', error instanceof Error ? error.message : 'Unknown error');
+    
+    return handleApiError(error);
   }
-}); 
+}
+
+// Process different event types
+async function processEvent(event: WebhookEvent) {
+  const { type, data } = event;
+  
+  // Log the event type
+  console.log('Processing event:', type);
+  
+  try {
+    // Get admin Firestore instance
+    const adminDb = await getAdminFirestore();
+    
+    if (!adminDb) {
+      console.error('Admin Firestore not available, logging event only');
+      console.log('Event data:', JSON.stringify(data, null, 2));
+      return;
+    }
+    
+    switch (type) {
+      case 'subscription.created':
+      case 'subscription.active':
+        await handleSubscriptionCreatedOrActive(adminDb, data);
+        break;
+        
+      case 'subscription.updated':
+        await handleSubscriptionUpdated(adminDb, data);
+        break;
+        
+      case 'subscription.canceled':
+      case 'subscription.revoked':
+        await handleSubscriptionCanceledOrRevoked(adminDb, data);
+        break;
+        
+      case 'subscription.uncanceled':
+        await handleSubscriptionUncanceled(adminDb, data);
+        break;
+        
+      case 'order.created':
+        await handleOrderCreated(adminDb, data);
+        break;
+        
+      case 'checkout.created':
+      case 'checkout.updated':
+        await handleCheckout(adminDb, data, type);
+        break;
+        
+      default:
+        console.log('Unhandled event type:', type);
+        console.log('Event data preview:', JSON.stringify(data).substring(0, 200) + '...');
+        break;
+    }
+    
+    console.log('Event processed successfully');
+  } catch (error) {
+    console.error('Error processing webhook event:', error);
+    throw error;
+  }
+}
+
+// Handle subscription created or active events
+async function handleSubscriptionCreatedOrActive(adminDb: any, data: any) {
+  const userId = data.metadata?.userId;
+  if (!userId) return;
+
+  const userRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists) {
+    const planName = data.metadata?.planName || 'Ultra';
+    const credits = data.metadata?.credits || 30000;
+
+    await userRef.update({
+      subscription: planName,
+      subscriptionId: data.id,
+      subscriptionStatus: 'active',
+      subscriptionInterval: data.recurring_interval || 'month',
+      subscriptionUpdatedAt: new Date(),
+      subscriptionStartDate: new Date(data.started_at),
+      subscriptionCurrentPeriodEnd: new Date(data.current_period_end),
+      wordBalance: credits,
+      lastOrderDate: new Date()
+    });
+  }
+}
+
+// Handle subscription updated events
+async function handleSubscriptionUpdated(adminDb: any, data: any) {
+  const userId = data.metadata?.userId;
+  if (!userId) return;
+
+  const userRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists) {
+    const updateData: any = {
+      subscriptionStatus: data.status,
+      subscriptionUpdatedAt: new Date(),
+      subscriptionCurrentPeriodEnd: new Date(data.current_period_end)
+    };
+
+    if (data.cancel_at_period_end) {
+      updateData.subscriptionEndDate = new Date(data.current_period_end);
+    }
+
+    await userRef.update(updateData);
+  }
+}
+
+// Handle subscription canceled or revoked events
+async function handleSubscriptionCanceledOrRevoked(adminDb: any, data: any) {
+  const userId = data.metadata?.userId;
+  if (!userId) return;
+
+  const userRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists) {
+    await userRef.update({
+      subscriptionStatus: 'cancelled',
+      subscriptionEndDate: new Date(),
+      subscriptionUpdatedAt: new Date(),
+      subscription: 'Free Plan',
+      wordBalance: 250 // Reset to free plan balance
+    });
+  }
+}
+
+// Handle subscription uncanceled events
+async function handleSubscriptionUncanceled(adminDb: any, data: any) {
+  const userId = data.metadata?.userId;
+  if (!userId) return;
+
+  const userRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists) {
+    const planName = data.metadata?.planName || 'Ultra';
+    const credits = data.metadata?.credits || 30000;
+
+    await userRef.update({
+      subscription: planName,
+      subscriptionStatus: 'active',
+      subscriptionEndDate: null,
+      subscriptionUpdatedAt: new Date(),
+      wordBalance: credits
+    });
+  }
+}
+
+// Handle order created events
+async function handleOrderCreated(adminDb: any, data: any) {
+  const userId = data.metadata?.userId;
+  if (!userId) return;
+
+  const userRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists) {
+    const updateData: any = {
+      lastOrderDate: new Date(),
+      lastOrderId: data.id
+    };
+
+    // If it's a renewal (subscription_cycle), add new credits
+    if (data.billing_reason === 'subscription_cycle') {
+      const credits = data.metadata?.credits || 30000;
+      const currentBalance = userDoc.data().wordBalance || 0;
+      updateData.wordBalance = currentBalance + credits;
+      updateData.subscriptionCurrentPeriodEnd = new Date(data.subscription?.current_period_end);
+    }
+
+    await userRef.update(updateData);
+  }
+}
+
+// Handle checkout events
+async function handleCheckout(adminDb: any, data: any, type: string) {
+  console.log(`${type} Info:`, {
+    id: data.id,
+    status: data.status,
+    customerId: data.customer_id,
+    customerExternalId: data.customer_external_id,
+    productId: data.product_id,
+    metadata: data.metadata
+  });
+  
+  try {
+    // Store checkout data
+    await adminDb.collection('checkouts').doc(data.id).set({
+      ...data,
+      status: data.status,
+      updatedAt: new Date(),
+      processedAt: new Date()
+    }, { merge: true });
+    
+    // If there's customer data, update user record
+    if (data.customer_external_id) {
+      const userRef = adminDb.collection('users').doc(data.customer_external_id);
+      const userDoc = await userRef.get();
+      
+      if (userDoc.exists) {
+        await userRef.update({
+          'checkoutPending': {
+            checkoutId: data.id,
+            productId: data.product_id,
+            productName: data.product?.name || '',
+            amount: data.amount,
+            currency: data.currency,
+            status: data.status,
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error handling checkout event:', error);
+  }
+} 

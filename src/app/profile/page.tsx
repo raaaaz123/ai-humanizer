@@ -1,21 +1,63 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { formatDistanceToNow } from 'date-fns';
+import { SubscriptionDialog } from "@/components/ui/subscription-dialog";
+import posthog from "posthog-js";
 
 export default function ProfilePage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
+  const [successDetails, setSuccessDetails] = useState<{
+    plan?: string;
+    credits?: string;
+    transactionId?: string;
+  }>({});
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/");
+      return;
     }
-  }, [user, loading, router]);
+    
+    // Check for checkout success parameter
+    const checkoutStatus = searchParams.get('checkout');
+    if (checkoutStatus === 'success') {
+      // Get additional details if available
+      const plan = searchParams.get('plan');
+      const credits = searchParams.get('credits');
+      const transactionId = searchParams.get('transactionId');
+      
+      setSuccessDetails({
+        plan: plan || undefined,
+        credits: credits || undefined,
+        transactionId: transactionId || undefined
+      });
+      
+      setShowSuccessMessage(true);
+      
+      // Track successful checkout
+      posthog.capture("checkout_success", {
+        plan: plan || "Unknown plan",
+        credits: credits ? parseInt(credits, 10) : undefined,
+        transactionId: transactionId
+      });
+      
+      // Hide the message after 8 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 8000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, router, searchParams]);
 
   if (loading) {
     return (
@@ -44,9 +86,94 @@ export default function ProfilePage() {
     return new Intl.NumberFormat().format(credits);
   };
 
+  // Generate success message based on available details
+  const getSuccessMessage = () => {
+    if (successDetails.plan && successDetails.credits) {
+      return `Your ${successDetails.plan} subscription was successful! ${parseInt(successDetails.credits).toLocaleString()} credits have been added to your account.`;
+    } else if (successDetails.plan) {
+      return `Your ${successDetails.plan} subscription was successful! Your credits have been added to your account.`;
+    } else if (successDetails.credits) {
+      return `Your subscription was successful! ${parseInt(successDetails.credits).toLocaleString()} credits have been added to your account.`;
+    } else {
+      return "Your subscription was successful! Your credits have been added to your account.";
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      // Track subscription cancellation attempt
+      posthog.capture("subscription_cancel_initiated", {
+        subscriptionId: user?.subscriptionId,
+        plan: user?.subscription
+      });
+
+      // Call your API to cancel the subscription
+      const response = await fetch('/api/subscription/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscriptionId: user?.subscriptionId
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to cancel subscription');
+      }
+
+      // Track successful cancellation
+      posthog.capture("subscription_cancelled", {
+        subscriptionId: user?.subscriptionId,
+        plan: user?.subscription
+      });
+
+      // Refresh the page to show updated status
+      router.refresh();
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      
+      // Track cancellation error
+      posthog.capture("subscription_cancel_error", {
+        subscriptionId: user?.subscriptionId,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+      
+      throw error; // Re-throw to be handled by the dialog
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f0f7ff] py-12 px-4">
       <div className="max-w-3xl mx-auto">
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p>{getSuccessMessage()}</p>
+                  {successDetails.transactionId && (
+                    <p className="text-xs mt-1">Transaction ID: {successDetails.transactionId}</p>
+                  )}
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSuccessMessage(false)}
+                className="text-green-700 hover:text-green-900"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Account Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center">
@@ -92,22 +219,22 @@ export default function ProfilePage() {
               <svg className="h-6 w-6 text-[#64748b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
-              <h2 className="text-xl font-bold">Credits</h2>
+              <h2 className="text-xl font-bold">Word Balance</h2>
             </div>
             
             <div className="mb-6">
-              <p className="text-4xl font-bold">{formatCredits(user.credits)}</p>
-              <p className="text-[#64748b]">available credits</p>
+              <p className="text-4xl font-bold">{formatCredits(user.wordBalance || 0)}</p>
+              <p className="text-[#64748b]">available words</p>
               {user.lastOrderDate && (
                 <p className="text-sm text-[#64748b] mt-2">
-                  Last purchase: {formatDistanceToNow(user.lastOrderDate, { addSuffix: true })}
+                  Last purchase: {formatDistanceToNow(new Date(user.lastOrderDate), { addSuffix: true })}
                 </p>
               )}
             </div>
             
             <Link href="/pricing">
               <Button className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white">
-                Get more credits
+                Get more words
               </Button>
             </Link>
           </div>
@@ -130,21 +257,66 @@ export default function ProfilePage() {
                 </span>
               </div>
               
+              {user.subscriptionInterval && (
+                <p className="text-sm text-[#64748b] mb-2">
+                  Billing: {user.subscriptionInterval === 'month' ? 'Monthly' : 'Annually'}
+                </p>
+              )}
+              
+              {user.subscriptionCurrentPeriodEnd && (
+                <p className="text-sm text-[#64748b] mb-2">
+                  Next billing date: {new Date(user.subscriptionCurrentPeriodEnd).toLocaleDateString()}
+                </p>
+              )}
+              
+              {user.subscriptionStartDate && (
+                <p className="text-sm text-[#64748b] mb-2">
+                  Started: {formatDistanceToNow(new Date(user.subscriptionStartDate), { addSuffix: true })}
+                </p>
+              )}
+              
               {user.subscriptionUpdatedAt && (
                 <p className="text-sm text-[#64748b]">
-                  Last updated: {formatDistanceToNow(user.subscriptionUpdatedAt, { addSuffix: true })}
+                  Last updated: {formatDistanceToNow(new Date(user.subscriptionUpdatedAt), { addSuffix: true })}
                 </p>
               )}
             </div>
             
-            <Link href="/pricing">
-              <Button variant="outline" className="w-full border-2 border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-white">
-                {user.subscription ? 'Manage Subscription' : 'Upgrade Now'}
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              className="w-full border-2 border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-white"
+              onClick={() => {
+                if (user?.subscription && user?.subscriptionStatus === 'active') {
+                  setShowSubscriptionDialog(true);
+                } else {
+                  router.push('/pricing');
+                }
+              }}
+            >
+              {user?.subscription && user?.subscriptionStatus === 'active' ? 'Manage Subscription' : 'Upgrade Now'}
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Subscription Dialog */}
+      {user && (
+        <SubscriptionDialog
+          isOpen={showSubscriptionDialog}
+          onClose={() => setShowSubscriptionDialog(false)}
+          subscription={{
+            name: user.subscription || 'Free Plan',
+            status: user.subscriptionStatus || 'free',
+            interval: user.subscriptionInterval || 'month',
+            startDate: user.subscriptionStartDate,
+            endDate: user.subscriptionEndDate,
+            currentPeriodEnd: user.subscriptionCurrentPeriodEnd,
+            updatedAt: user.subscriptionUpdatedAt,
+            wordBalance: user.wordBalance || 0
+          }}
+          onCancelSubscription={handleCancelSubscription}
+        />
+      )}
     </main>
   );
 } 

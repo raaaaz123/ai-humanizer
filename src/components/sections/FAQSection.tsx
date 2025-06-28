@@ -120,7 +120,7 @@ export const FAQSection = () => {
                   </svg>
                 </div>
               )}
-              {openItemId === faq.id && (
+              {isMounted && openItemId === faq.id && (
                 <div className="px-5 pb-5 pt-0">
                   <p className="text-[#64748b]">{faq.answer}</p>
                 </div>

@@ -2,11 +2,11 @@
 
 export const theme = {
   colors: {
-    primary: '#b074d4', // Purple for CTA buttons (was blue)
-    primaryHover: '#9d4ec6', // Darker purple for hover
-    secondary: '#f8f0ff', // Light purple background
-    accent: '#c084fc', // Lighter purple accent
-    accentHover: '#a855f7',
+    primary: '#3b82f6', // Blue for CTA buttons (matching pricing page)
+    primaryHover: '#2563eb', // Darker blue for hover
+    secondary: '#f0f7ff', // Light blue background
+    accent: '#60a5fa', // Lighter blue accent
+    accentHover: '#3b82f6',
     text: '#1e293b',
     textLight: '#64748b',
     background: '#ffffff',
@@ -68,10 +68,10 @@ export const theme = {
   },
   variants: {
     button: {
-      primary: "bg-[#b074d4] text-white hover:bg-[#9d4ec6]",
+      primary: "bg-[#3b82f6] text-white hover:bg-[#2563eb]",
       secondary: "bg-[#f1f5f9] text-[#1e293b] hover:bg-[#e2e8f0]",
       outline: "border border-[#e2e8f0] bg-transparent hover:bg-[#f8fafc]",
-      accent: "bg-[#f8f0ff] text-[#b074d4] hover:bg-[#f5e8ff]",
+      accent: "bg-[#f0f7ff] text-[#3b82f6] hover:bg-[#dbeafe]",
       destructive: "bg-[#ef4444] text-white hover:bg-[#dc2626]",
     }
   }
@@ -81,13 +81,14 @@ export type Theme = typeof theme;
 
 // CSS class helpers
 export const themeClasses = {
-  primaryButton: "bg-[#b074d4] hover:bg-[#9d4ec6] text-white",
-  secondaryButton: "bg-[#f8f0ff] text-[#1e293b] hover:bg-[#f5e8ff]",
-  outlineButton: "bg-transparent border border-[#e2e8f0] text-[#1e293b] hover:bg-[#f8f0ff]",
-  accentButton: "bg-[#c084fc] hover:bg-[#a855f7] text-white",
+  primaryButton: "bg-[#3b82f6] hover:bg-[#2563eb] text-white",
+  secondaryButton: "bg-[#f0f7ff] text-[#1e293b] hover:bg-[#dbeafe]",
+  outlineButton: "bg-transparent border border-[#e2e8f0] text-[#1e293b] hover:bg-[#f0f7ff]",
+  accentButton: "bg-[#60a5fa] hover:bg-[#3b82f6] text-white",
   primaryText: "text-[#1e293b]",
   secondaryText: "text-[#64748b]",
   backgroundPrimary: "bg-white",
-  backgroundSecondary: "bg-[#f8f0ff]",
+  backgroundSecondary: "bg-[#f0f7ff]",
   border: "#e2e8f0",
+  gradientBlue: "bg-gradient-to-r from-[#3b82f6] to-[#2563eb]",
 }; 

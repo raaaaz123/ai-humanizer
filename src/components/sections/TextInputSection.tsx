@@ -8,6 +8,9 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { theme, themeClasses } from "@/lib/theme";
+import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 export const TextInputSection = () => {
   const [inputText, setInputText] = useState("");
@@ -16,7 +19,24 @@ export const TextInputSection = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showOutput, setShowOutput] = useState(false);
+  const [wordCount, setWordCount] = useState(0);
+  const [error, setError] = useState("");
   const { user, userData, signIn } = useAuth();
+  const router = useRouter();
+
+  const MIN_WORDS = 50;
+
+  // Calculate word count when input changes
+  useEffect(() => {
+    const count = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
+    setWordCount(count);
+    
+    if (count > 0 && count < MIN_WORDS) {
+      setError(`Minimum ${MIN_WORDS} words required (${MIN_WORDS - count} more needed)`);
+    } else {
+      setError("");
+    }
+  }, [inputText]);
 
   // Ensure we only render interactive elements client-side
   useEffect(() => {
@@ -47,6 +67,9 @@ export const TextInputSection = () => {
     try {
       const text = await navigator.clipboard.readText();
       setInputText(text);
+      posthog.capture("text_pasted", {
+        wordCount: text.trim().split(/\s+/).length,
+      });
     } catch (err) {
       console.error("Failed to read clipboard: ", err);
     }
@@ -56,28 +79,46 @@ export const TextInputSection = () => {
     setInputText("");
     setOutputText("");
     setShowOutput(false);
+    setError("");
+    posthog.capture("text_cleared");
   };
 
   const handleHumanize = async () => {
     if (!user) {
       signIn();
+      posthog.capture("sign_in_prompt", { trigger: "humanize_button" });
       return;
     }
 
-    if (!inputText.trim()) return;
+    if (!inputText.trim()) {
+      setError("Please enter some text to humanize");
+      return;
+    }
+    
+    if (wordCount < MIN_WORDS) {
+      setError(`Minimum ${MIN_WORDS} words required (${MIN_WORDS - wordCount} more needed)`);
+      return;
+    }
     
     if (!userData || userData.wordBalance <= 0) {
-      alert("You don't have enough word balance. Please upgrade your plan.");
+      setError("You don't have enough word balance. Please upgrade your plan.");
+      posthog.capture("insufficient_balance", { 
+        wordCount: wordCount,
+        userBalance: userData?.wordBalance || 0 
+      });
       return;
     }
     
-    const wordCount = inputText.trim().split(/\s+/).length;
-    
     if (wordCount > userData.wordBalance) {
-      alert(`You don't have enough word balance. Your text has ${wordCount} words but you only have ${userData.wordBalance} words left.`);
+      setError(`You don't have enough word balance. Your text has ${wordCount} words but you only have ${userData.wordBalance} words left.`);
+      posthog.capture("insufficient_balance", { 
+        wordCount: wordCount,
+        userBalance: userData?.wordBalance || 0 
+      });
       return;
     }
 
+    setError("");
     setIsLoading(true);
     setProgress(0);
     
@@ -100,10 +141,24 @@ export const TextInputSection = () => {
         
         setIsLoading(false);
         setShowOutput(true);
+        
+        // Track successful humanization
+        posthog.capture("text_humanized", {
+          wordCount: wordCount,
+          processingTime: 1500, // milliseconds
+          remainingBalance: userData ? Math.max(0, userData.wordBalance - wordCount) : 0
+        });
       }, 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error humanizing text:", error);
       setIsLoading(false);
+      setError("Failed to humanize text. Please try again.");
+      
+      // Track error
+      posthog.capture("humanization_error", {
+        wordCount: wordCount,
+        error: error.toString()
+      });
     }
   };
 
@@ -113,128 +168,186 @@ export const TextInputSection = () => {
     try {
       await navigator.clipboard.writeText(outputText);
       alert("Copied to clipboard!");
+      posthog.capture("output_copied", {
+        wordCount: outputText.trim().split(/\s+/).length
+      });
     } catch (err) {
       console.error("Failed to copy: ", err);
     }
   };
 
+  const getWordCountColor = () => {
+    if (wordCount === 0) return "text-gray-400";
+    if (wordCount < MIN_WORDS) return `text-[${theme.colors.error}]`;
+    if (userData && userData.wordBalance && wordCount > userData.wordBalance) return `text-[${theme.colors.error}]`;
+    return `text-[${theme.colors.primary}]`;
+  };
+
+  // CSS for the glowing button
+  const glowAnimation = `
+    @keyframes glow {
+      0% {
+        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5), 0 0 10px rgba(59, 130, 246, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.5);
+      }
+      100% {
+        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5), 0 0 10px rgba(59, 130, 246, 0.3);
+      }
+    }
+    .glow-button {
+      animation: glow 2s infinite;
+    }
+  `;
+
   return (
-    <section className="py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-2">Transform AI Text to Human</h2>
-          <p className="text-[#64748b] max-w-2xl mx-auto">
+    <section className="py-16 px-4 bg-gray-50 min-h-screen">
+      <style jsx>{glowAnimation}</style>
+      <div className="max-w-5xl mx-auto">
+        {/* Header Section */}
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
+            Transform AI Text to Human
+          </h2>
+          <p className={`text-[${theme.colors.textLight}] max-w-3xl mx-auto text-lg md:text-xl leading-relaxed`}>
             Paste your AI-generated content and our advanced AI will transform it into natural, human-like text that connects with your audience.
           </p>
+          <Button
+            variant="primary"
+            size="lg"
+            className="mt-10 px-10 py-6 text-lg font-medium rounded-xl glow-button transform hover:scale-105 transition-all duration-300 shadow-lg"
+            onClick={() => router.push('/pricing')}
+          >
+            Get more words
+          </Button>
         </div>
 
         {/* Input Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] p-6 mb-8">
-          <div className="flex justify-between items-center mb-3">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-8 transition-all duration-300 hover:shadow-xl">
+          <div className="flex justify-between items-center mb-6">
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-[#ef4444] rounded-full mr-1.5"></div>
-              <div className="w-3 h-3 bg-[#f59e0b] rounded-full mr-1.5"></div>
-              <div className="w-3 h-3 bg-[#10b981] rounded-full mr-3"></div>
-              <label className="text-sm font-medium text-[#1e293b]">Input Text</label>
+              <div className="w-2 h-6 bg-blue-500 rounded-full mr-3"></div>
+              <label className="text-lg font-semibold text-gray-800">Input Text</label>
             </div>
-            {isMounted && (
+            {isMounted && inputText && (
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={handlePaste}
-                className="text-xs flex items-center gap-1.5"
+                onClick={handleClear}
+                className="text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Paste
+                Clear
               </Button>
             )}
           </div>
           
           <div className="relative">
-            <TextArea 
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Paste your AI-generated text here..."
-              className="min-h-[250px] mb-2 bg-[#f8fafc] border-[#e2e8f0] focus:border-[#b074d4] focus:ring-[#b074d4] font-mono text-sm resize-none"
-            />
-            <div className="absolute bottom-3 right-3 bg-[#f8f0ff] text-[#b074d4] text-xs px-2 py-1 rounded-md font-mono">
-              {inputText ? `${inputText.trim().split(/\s+/).length} words` : "0 words"}
-            </div>
-          </div>
-          
-          <div className="flex justify-between items-center mt-4">
-            {user && userData && (
-              <div className="text-sm text-[#64748b] flex items-center">
-                <svg className="w-4 h-4 mr-1.5 text-[#b074d4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                <span>Balance: <strong>{userData.wordBalance}</strong> words</span>
+            {/* Empty state with centered paste button */}
+            {!inputText && isMounted && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={handlePaste}
+                  className="flex items-center gap-3 bg-white/95 backdrop-blur-sm hover:bg-white shadow-md border-2 border-dashed border-gray-300 hover:border-blue-400 transition-all duration-300 px-8 py-4 rounded-xl"
+                >
+                  <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span className="font-medium">Paste AI-generated text</span>
+                </Button>
               </div>
             )}
             
-            {isMounted && (
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleClear}
-                  className="text-xs"
-                >
-                  Clear
-                </Button>
-                <Button 
-                  variant="primary" 
-                  size="sm"
-                  onClick={handleHumanize}
-                  disabled={!inputText.trim() || isLoading}
-                  className="text-xs"
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="mr-2">Humanizing</span>
-                      <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full"></div>
-                    </>
-                  ) : (
-                    user ? "Humanize Text" : "Sign In to Humanize"
-                  )}
-                </Button>
+            <TextArea 
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={`Paste your AI-generated text here... (minimum ${MIN_WORDS} words)`}
+              className={cn(
+                "min-h-[380px] md:min-h-[420px] p-6 text-base resize-none",
+                "bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "border border-gray-200 shadow-inner rounded-xl transition-all duration-300",
+                "placeholder:text-gray-400 leading-relaxed"
+              )}
+            />
+            <div className={cn(
+              "absolute bottom-4 right-4 px-3 py-2 rounded-lg font-mono text-sm backdrop-blur-sm",
+              "bg-white/90 border border-gray-200 shadow-sm",
+              getWordCountColor()
+            )}>
+              {wordCount} words {wordCount > 0 && wordCount < MIN_WORDS && `(${MIN_WORDS - wordCount} more needed)`}
+            </div>
+          </div>
+          
+          {error && (
+            <div className={`text-[${theme.colors.error}] text-sm mt-4 mb-2 bg-red-50 border border-red-200 rounded-lg p-3`}>
+              {error}
+            </div>
+          )}
+          
+          <div className="flex justify-between items-center mt-6">
+            {user && userData && (
+              <div className={`text-sm text-[${theme.colors.textLight}] flex items-center bg-blue-50 px-4 py-2 rounded-lg border border-blue-100`}>
+                <svg className={`w-5 h-5 mr-2 text-[${theme.colors.primary}]`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                <span>Balance: <strong className="text-blue-600">{userData.wordBalance}</strong> words</span>
               </div>
+            )}
+            
+            {isMounted && inputText && (
+              <Button 
+                variant="primary" 
+                size="default"
+                onClick={handleHumanize}
+                disabled={!inputText.trim() || isLoading || wordCount < MIN_WORDS || (userData?.wordBalance !== undefined && wordCount > userData.wordBalance)}
+                className="px-8 py-3 font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="mr-3">Humanizing</span>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  </>
+                ) : (
+                  user ? "Humanize Text" : "Sign In to Humanize"
+                )}
+              </Button>
             )}
           </div>
         </div>
 
         {/* Processing Status */}
         {isLoading && (
-          <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] p-6 mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium">Processing your text...</h3>
-              <span className="text-xs text-[#b074d4]">{progress}%</span>
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="w-2 h-6 bg-blue-500 rounded-full mr-3"></div>
+                <h3 className="text-lg font-semibold text-gray-800">Processing your text...</h3>
+              </div>
+              <span className={`text-sm font-medium text-[${theme.colors.primary}] bg-blue-50 px-3 py-1 rounded-lg`}>{progress}%</span>
             </div>
             <Progress 
               value={progress} 
-              className={cn("h-2", "bg-[#f8f0ff]")}
+              className={cn("h-3 bg-gray-100 rounded-full overflow-hidden")}
             />
-            <div className="mt-3 text-xs text-[#64748b] flex items-center">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#b074d4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <div className={`mt-4 text-sm text-[${theme.colors.textLight}] flex items-center`}>
+              <svg className={`animate-spin -ml-1 mr-3 h-5 w-5 text-[${theme.colors.primary}]`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Applying humanization algorithms...
+              <span className="font-medium">Applying humanization algorithms...</span>
             </div>
           </div>
         )}
 
         {/* Output Section - Only shown after generation */}
         {showOutput && !isLoading && (
-          <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] p-6">
-            <div className="flex justify-between items-center mb-3">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 transition-all duration-300 hover:shadow-xl">
+            <div className="flex justify-between items-center mb-6">
               <div className="flex items-center">
-                <div className="w-3 h-3 bg-[#ef4444] rounded-full mr-1.5"></div>
-                <div className="w-3 h-3 bg-[#f59e0b] rounded-full mr-1.5"></div>
-                <div className="w-3 h-3 bg-[#10b981] rounded-full mr-3"></div>
-                <label className="text-sm font-medium text-[#1e293b]">Humanized Text</label>
+                <div className="w-2 h-6 bg-green-500 rounded-full mr-3"></div>
+                <label className="text-lg font-semibold text-gray-800">Humanized Text</label>
               </div>
               {isMounted && (
                 <Button 
@@ -242,9 +355,9 @@ export const TextInputSection = () => {
                   size="sm" 
                   onClick={handleCopy}
                   disabled={!outputText}
-                  className="text-xs flex items-center gap-1.5"
+                  className="text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors duration-200 flex items-center gap-2"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                   Copy
@@ -256,25 +369,34 @@ export const TextInputSection = () => {
               <TextArea 
                 value={outputText}
                 readOnly
-                className="min-h-[250px] mb-2 bg-[#f8f0ff] border-[#e2e8f0] font-mono text-sm resize-none"
+                className={cn(
+                  "min-h-[380px] md:min-h-[420px] p-6 text-base resize-none",
+                  "bg-green-50/30 border border-green-200 shadow-inner rounded-xl",
+                  "leading-relaxed"
+                )}
               />
-              <div className="absolute bottom-3 right-3 bg-[#f5e8ff] text-[#b074d4] text-xs px-2 py-1 rounded-md font-mono">
+              <div className={cn(
+                "absolute bottom-4 right-4 px-3 py-2 rounded-lg font-mono text-sm",
+                "bg-green-100 border border-green-200 text-green-700 shadow-sm"
+              )}>
                 {outputText ? `${outputText.trim().split(/\s+/).length} words` : "0 words"}
               </div>
             </div>
             
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center justify-between mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-[#10b981] flex items-center justify-center mr-1.5">
-                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className={`w-6 h-6 rounded-full bg-[${theme.colors.success}] flex items-center justify-center mr-3`}>
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-xs text-[#10b981] font-medium">Successfully humanized</span>
+                <span className={`text-sm text-[${theme.colors.success}] font-semibold`}>Successfully humanized</span>
               </div>
               
-              <div className="text-xs text-[#64748b]">
-                <span className="font-medium">AI Detection:</span> 0.1% (Undetectable)
+              <div className="flex items-center gap-3">
+                <div className={`text-sm text-[${theme.colors.textLight}] bg-white px-3 py-1 rounded-lg border border-gray-200`}>
+                  <span className="font-medium">AI Detection:</span> <span className="text-green-600 font-semibold">0.1% (Undetectable)</span>
+                </div>
               </div>
             </div>
           </div>
@@ -282,4 +404,4 @@ export const TextInputSection = () => {
       </div>
     </section>
   );
-}; 
+};

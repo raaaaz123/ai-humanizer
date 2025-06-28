@@ -1,7 +1,7 @@
 "use client";
 
 import { TextareaHTMLAttributes, forwardRef } from "react";
-import { theme, themeClasses } from "@/lib/theme";
+import { themeClasses } from "@/lib/theme";
 
 interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
