@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { theme, themeClasses } from "@/lib/theme";
 
 interface UseCase {
@@ -82,7 +81,7 @@ export const UseCasesSection = () => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
-            How You Can Use AI Humanizer
+            How You Can Use Raw Writer
           </h2>
           <p className={`text-[${theme.colors.textLight}] max-w-2xl mx-auto text-lg`}>
             Discover the versatile applications of our AI humanization technology across different content types

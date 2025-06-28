@@ -1,7 +1,6 @@
 // lib/firebaseAdmin.ts
 import * as admin from "firebase-admin";
 import { cookies } from "next/headers";
-import { RequestCookies } from "next/dist/server/web/spec-extension/cookies";
 
 if (!admin.apps.length) {
   try {

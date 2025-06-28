@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TextArea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/AuthContext";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { theme, themeClasses } from "@/lib/theme";
+import { theme } from "@/lib/theme";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 
@@ -25,6 +25,28 @@ export const TextInputSection = () => {
   const router = useRouter();
 
   const MIN_WORDS = 50;
+  
+  // Get word limit based on subscription plan
+  const getWordLimit = () => {
+    if (!userData) return 250; // Default free plan limit
+    
+    // Get the plan name and log it for debugging
+    const plan = userData.subscription || 'Free Plan';
+    console.log('Current plan:', plan, 'Word balance:', userData.wordBalance);
+    
+    // Check for plan names - handle different variations
+    if (plan === 'Basic' || plan.includes('Basic')) {
+      return 500;
+    } else if (plan === 'Pro' || plan.includes('Pro')) {
+      return 1500;
+    } else if (plan === 'Ultra' || plan.includes('Ultra')) {
+      return 3000;
+    } else {
+      return 250; // Free plan
+    }
+  };
+  
+  const wordLimit = getWordLimit();
 
   // Calculate word count when input changes
   useEffect(() => {
@@ -33,15 +55,40 @@ export const TextInputSection = () => {
     
     if (count > 0 && count < MIN_WORDS) {
       setError(`Minimum ${MIN_WORDS} words required (${MIN_WORDS - count} more needed)`);
+    } else if (count > wordLimit) {
+      setError(`Maximum ${wordLimit} words allowed for your plan (${count - wordLimit} words over limit)`);
     } else {
       setError("");
     }
-  }, [inputText]);
+  }, [inputText, wordLimit, MIN_WORDS]);
 
   // Ensure we only render interactive elements client-side
   useEffect(() => {
     setIsMounted(true);
+
+    // Check for history item in localStorage
+    const historyItem = localStorage.getItem('selectedHistoryItem');
+    if (historyItem) {
+      const { inputText: savedInput, outputText: savedOutput } = JSON.parse(historyItem);
+      setInputText(savedInput);
+      setOutputText(savedOutput);
+      setShowOutput(true);
+      // Clear the history item
+      localStorage.removeItem('selectedHistoryItem');
+    }
   }, []);
+
+  // Log plan info when userData changes
+  useEffect(() => {
+    if (userData) {
+      console.log('User Plan Info:', {
+        plan: userData.subscription || 'Free Plan',
+        wordBalance: userData.wordBalance,
+        wordLimit: getWordLimit(),
+        subscriptionStatus: userData.subscriptionStatus
+      });
+    }
+  }, [userData]);
 
   // Progress bar animation
   useEffect(() => {
@@ -100,6 +147,11 @@ export const TextInputSection = () => {
       return;
     }
     
+    if (wordCount > wordLimit) {
+      setError(`Maximum ${wordLimit} words allowed for your plan (${wordCount - wordLimit} words over limit)`);
+      return;
+    }
+    
     if (!userData || userData.wordBalance <= 0) {
       setError("You don't have enough word balance. Please upgrade your plan.");
       posthog.capture("insufficient_balance", { 
@@ -121,38 +173,89 @@ export const TextInputSection = () => {
     setError("");
     setIsLoading(true);
     setProgress(0);
+    setOutputText("Processing your text...");
+    setShowOutput(true);
     
     try {
-      // Here you would call your AI humanizing API
-      // For now we'll just simulate a response
-      setTimeout(async () => {
-        const humanizedText = `${inputText} (Humanized version)`;
-        setOutputText(humanizedText);
-        setProgress(100);
-        
-        // Update word balance in Firestore
-        if (user && userData) {
-          const newBalance = Math.max(0, userData.wordBalance - wordCount);
-          const userRef = doc(db, "users", user.uid);
-          await updateDoc(userRef, {
-            wordBalance: newBalance
-          });
-        }
-        
-        setIsLoading(false);
-        setShowOutput(true);
-        
-        // Track successful humanization
-        posthog.capture("text_humanized", {
-          wordCount: wordCount,
-          processingTime: 1500, // milliseconds
-          remainingBalance: userData ? Math.max(0, userData.wordBalance - wordCount) : 0
+      const startTime = Date.now();
+      
+      // Call the humanizer API
+      const response = await fetch(process.env.NEXT_PUBLIC_HUMANIZER_API_URL!, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_HUMANIZER_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: inputText,
+          model: "undetectable",
+          words: true,
+          costs: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} - ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      const processingTime = Date.now() - startTime;
+      
+      // Log the complete API response
+      console.log('Humanizer API Response:', {
+        status: response.status,
+        processingTime: `${processingTime}ms`,
+        wordCount: wordCount,
+        plan: userData?.subscription || 'Free Plan',
+        wordLimit: wordLimit,
+        fleschScore: data.new_flesch_score,
+        inputLength: inputText.length,
+        outputLength: data.output?.length || 0,
+        completeResponse: data
+      });
+      
+      // Update output and progress
+      setOutputText(data.output);
+      setProgress(100);
+      
+      // Save to history in Firestore
+      if (user) {
+        const historyRef = collection(db, "users", user.uid, "history");
+        await addDoc(historyRef, {
+          inputText,
+          outputText: data.output,
+          wordCount,
+          fleschScore: data.new_flesch_score,
+          createdAt: serverTimestamp()
         });
-      }, 1500);
+      }
+      
+      // Update word balance in Firestore and local state
+      if (user && userData) {
+        const newBalance = Math.max(0, userData.wordBalance - wordCount);
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          wordBalance: newBalance
+        });
+        
+        // Update local userData state to reflect new balance immediately
+        userData.wordBalance = newBalance;
+      }
+      
+      setIsLoading(false);
+      
+      // Track successful humanization
+      posthog.capture("text_humanized", {
+        wordCount: wordCount,
+        processingTime,
+        fleschScore: data.new_flesch_score,
+        remainingBalance: userData ? Math.max(0, userData.wordBalance - wordCount) : 0
+      });
     } catch (error: any) {
       console.error("Error humanizing text:", error);
       setIsLoading(false);
       setError("Failed to humanize text. Please try again.");
+      setOutputText("");
       
       // Track error
       posthog.capture("humanization_error", {
@@ -179,6 +282,7 @@ export const TextInputSection = () => {
   const getWordCountColor = () => {
     if (wordCount === 0) return "text-gray-400";
     if (wordCount < MIN_WORDS) return `text-[${theme.colors.error}]`;
+    if (wordCount > wordLimit) return `text-[${theme.colors.error}]`;
     if (userData && userData.wordBalance && wordCount > userData.wordBalance) return `text-[${theme.colors.error}]`;
     return `text-[${theme.colors.primary}]`;
   };
@@ -263,7 +367,7 @@ export const TextInputSection = () => {
             <TextArea 
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Paste your AI-generated text here... (minimum ${MIN_WORDS} words)`}
+              placeholder={`Paste your AI-generated text here... (${MIN_WORDS}-${wordLimit} words)`}
               className={cn(
                 "min-h-[380px] md:min-h-[420px] p-6 text-base resize-none",
                 "bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent",
@@ -276,7 +380,9 @@ export const TextInputSection = () => {
               "bg-white/90 border border-gray-200 shadow-sm",
               getWordCountColor()
             )}>
-              {wordCount} words {wordCount > 0 && wordCount < MIN_WORDS && `(${MIN_WORDS - wordCount} more needed)`}
+              {wordCount} / {wordLimit} words
+              {wordCount > 0 && wordCount < MIN_WORDS && ` (${MIN_WORDS - wordCount} more needed)`}
+              {wordCount > wordLimit && ` (${wordCount - wordLimit} over limit)`}
             </div>
           </div>
           
@@ -292,7 +398,11 @@ export const TextInputSection = () => {
                 <svg className={`w-5 h-5 mr-2 text-[${theme.colors.primary}]`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
-                <span>Balance: <strong className="text-blue-600">{userData.wordBalance}</strong> words</span>
+                <span>
+                  <span className="text-blue-600 font-medium">{userData.subscription || 'Free Plan'}</span>: 
+                  <strong className="text-blue-600 ml-1">{userData.wordBalance.toLocaleString()}</strong> words balance • 
+                  <span className="text-blue-600 ml-1">{wordLimit.toLocaleString()}</span> max per request
+                </span>
               </div>
             )}
             
@@ -301,7 +411,7 @@ export const TextInputSection = () => {
                 variant="primary" 
                 size="default"
                 onClick={handleHumanize}
-                disabled={!inputText.trim() || isLoading || wordCount < MIN_WORDS || (userData?.wordBalance !== undefined && wordCount > userData.wordBalance)}
+                disabled={!inputText.trim() || isLoading || wordCount < MIN_WORDS || wordCount > wordLimit || (userData?.wordBalance !== undefined && wordCount > userData.wordBalance)}
                 className="px-8 py-3 font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 {isLoading ? (

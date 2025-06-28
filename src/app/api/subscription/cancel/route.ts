@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Define a type for the Polar error structure for type checking
+type PolarErrorResponse = {
+  response?: {
+    status?: number;
+    data?: {
+      error?: string;
+      error_description?: string;
+    };
+  };
+  message: string;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { subscriptionId } = await req.json();
@@ -19,11 +31,11 @@ export async function POST(req: NextRequest) {
     try {
       // Log the token being used (first 10 chars only for security)
       const tokenPreview = process.env.NEXT_PUBLIC_POLAR_ACCESS_TOKEN.substring(0, 10) + '...';
-      console.log('Using Polar sandbox token:', tokenPreview);
-      console.log('Using Polar sandbox environment');
+      console.log('Using Polar production token:', tokenPreview);
+      console.log('Using Polar production environment');
       
-      // Make direct API call to sandbox environment
-      const response = await fetch(`https://sandbox-api.polar.sh/v1/subscriptions/${subscriptionId}`, {
+      // Make direct API call to production environment
+      const response = await fetch(`https://api.polar.sh/v1/subscriptions/${subscriptionId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_POLAR_ACCESS_TOKEN}`,
@@ -46,27 +58,30 @@ export async function POST(req: NextRequest) {
         message: 'Subscription cancelled successfully',
         subscription: data
       });
-    } catch (polarError: any) {
+    } catch (polarError: unknown) {
+      // Type cast to the expected error structure
+      const typedError = polarError as PolarErrorResponse;
+      
       console.error('Polar API Error:', {
-        status: polarError?.response?.status,
-        error: polarError?.response?.data?.error,
-        description: polarError?.response?.data?.error_description,
-        message: polarError.message,
-        url: 'https://sandbox-api.polar.sh/v1/subscriptions'
+        status: typedError?.response?.status,
+        error: typedError?.response?.data?.error,
+        description: typedError?.response?.data?.error_description,
+        message: typedError.message,
+        url: 'https://api.polar.sh/v1/subscriptions'
       });
       
       // Check for specific error types
-      if (polarError?.response?.status === 401) {
+      if (typedError?.response?.status === 401) {
         return NextResponse.json({
           error: 'Authentication failed',
-          details: 'Invalid or expired API token. Please check your Polar dashboard for a valid sandbox token.'
+          details: 'Invalid or expired API token. Please check your Polar dashboard for a valid production token.'
         }, { status: 401 });
       }
       
       return NextResponse.json({
         error: 'Failed to cancel subscription',
-        details: polarError?.response?.data?.error_description || polarError?.message || 'Unknown error from Polar API'
-      }, { status: polarError?.response?.status || 400 });
+        details: typedError?.response?.data?.error_description || typedError?.message || 'Unknown error from Polar API'
+      }, { status: typedError?.response?.status || 400 });
     }
   } catch (error) {
     console.error('Server Error:', error);

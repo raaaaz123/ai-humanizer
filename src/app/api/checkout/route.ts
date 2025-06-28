@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Checkout } from "@polar-sh/nextjs";
 
-// Get base URL for dynamic environment URLs
-const baseUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://www.ai-humanizer.com'
-  : 'http://localhost:3000';
-
-// Use environment variables for Polar configuration
-const successUrl = process.env.NEXT_PUBLIC_POLAR_SUCCESS_URL || 
-  `${baseUrl}/confirmation?checkout_id={CHECKOUT_ID}`;
-const cancelUrl = process.env.NEXT_PUBLIC_POLAR_CANCEL_URL || 
-  `${baseUrl}/pricing?checkout=cancelled`;
+// Production URLs for Polar configuration
+const baseUrl = 'https://www.rawwriter.com';
+const successUrl = 'https://www.rawwriter.com/confirmation?checkout_id={CHECKOUT_ID}';
+const cancelUrl = 'https://www.rawwriter.com/pricing?checkout=cancelled';
 
 // Validate that we have the required environment variables
 const POLAR_ACCESS_TOKEN = process.env.NEXT_PUBLIC_POLAR_ACCESS_TOKEN;
 
 // Log function for debugging
-const logCheckoutEvent = (type: string, data: any) => {
+const logCheckoutEvent = (type: string, data: Record<string, unknown>) => {
   const timestamp = new Date().toISOString();
   console.log(`CHECKOUT ${type} [${timestamp}]:`, JSON.stringify(data, null, 2));
 };
@@ -24,7 +18,7 @@ const logCheckoutEvent = (type: string, data: any) => {
 // Create Polar checkout handler - with fallback for missing token
 const createCheckout = POLAR_ACCESS_TOKEN ? Checkout({
   accessToken: POLAR_ACCESS_TOKEN,
-  server: process.env.POLAR_ENVIRONMENT as 'sandbox' | 'production' || 'production'
+  server: 'production'
 }) : null;
 
 // Simple checkout handler that simulates a successful checkout
@@ -50,7 +44,6 @@ export async function GET(req: NextRequest) {
     const products = searchParams.get('products');
     const customerExternalId = searchParams.get('customerExternalId');
     const customerEmail = searchParams.get('customerEmail');
-    const customerName = searchParams.get('customerName');
     const metadata = searchParams.get('metadata');
 
     // Validate required parameters

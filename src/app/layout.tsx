@@ -5,6 +5,7 @@ import Footer from "@/components/layout/Footer";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CookieConsent } from "@/components/ui/cookie-consent";
 import { PostHogProvider } from "@/lib/PostHogProvider";
+import { Suspense } from "react";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,8 +19,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Humanizer - Transform AI Text to Human-Like Content",
-  description: "AI Humanizer helps you transform AI-generated content into natural, human-like text that connects with your audience.",
+  title: "Raw Writer - Transform AI Text to Human-Like Content",
+  description: "Raw Writer helps you transform AI-generated content into natural, human-like text that connects with your audience.",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -28,18 +35,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <AuthProvider>
-          <PostHogProvider>
-            <CookieConsent>
-              <Header />
-              {children}
-              <Footer />
-            </CookieConsent>
-          </PostHogProvider>
+          <Suspense>
+            <PostHogProvider>
+              <CookieConsent>
+                <div className="flex flex-col min-h-screen">
+                  <Header />
+                  <main className="flex-grow">
+                    {children}
+                  </main>
+                  <Footer />
+                </div>
+              </CookieConsent>
+            </PostHogProvider>
+          </Suspense>
         </AuthProvider>
       </body>
     </html>

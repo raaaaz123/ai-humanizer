@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Export runtime configuration for all API routes
 export const runtime = 'nodejs';
@@ -16,7 +16,7 @@ export function handleApiError(error: unknown) {
 }
 
 // Helper function to create a success response
-export function createSuccessResponse(data: any, status = 200) {
+export function createSuccessResponse(data: Record<string, unknown>, status = 200) {
   return NextResponse.json({
     success: true,
     ...data

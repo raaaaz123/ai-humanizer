@@ -43,7 +43,7 @@ const supportCategories = [
     icon: <Mail className="w-6 h-6" />,
     title: "Email Support",
     description: "Get help via email within 24 hours",
-    contact: "support@aihumanizer.com",
+    contact: "rexatechin@gmail.com",
     responseTime: "24 hours",
     color: "bg-blue-50 text-blue-600 border-blue-200"
   },
@@ -83,8 +83,8 @@ const faqData = [
     answer: "Absolutely. We use enterprise-grade encryption to protect your data. We don't store your text after processing, and all data transmission is secured with SSL encryption."
   },
   {
-    question: "What AI detectors does AI Humanizer bypass?",
-    answer: "AI Humanizer is designed to bypass all major AI detection tools including GPTZero, Turnitin, Originality.ai, Copyleaks, Writer.com, and many others."
+    question: "What AI detectors does Raw Writer bypass?",
+    answer: "Raw Writer is designed to bypass all major AI detection tools including GPTZero, Turnitin, Originality.ai, Copyleaks, Writer.com, and many others."
   },
   {
     question: "Do you offer refunds?",
@@ -299,7 +299,7 @@ export default function SupportPage() {
                     <div>
                       <p className="font-medium text-red-800">Failed to send message</p>
                       <p className="text-red-700 text-sm mt-1">
-                        Please try again or contact us directly at support@aihumanizer.com
+                        Please try again or contact us directly at rexatechin@gmail.com
                       </p>
                     </div>
                   </div>
@@ -428,7 +428,7 @@ export default function SupportPage() {
                 Frequently Asked Questions
               </h2>
               <p className="text-gray-600">
-                Find quick answers to common questions about AI Humanizer.
+                Find quick answers to common questions about Raw Writer.
               </p>
             </div>
 
@@ -458,7 +458,7 @@ export default function SupportPage() {
                 Can't find what you're looking for? Our support team is always ready to help.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link href="mailto:support@aihumanizer.com">
+                <Link href="mailto:rexatechin@gmail.com">
                   <Button variant="outline" size="sm" className="hover:bg-blue-50">
                     <Mail className="w-4 h-4 mr-2" />
                     Email Support
@@ -474,7 +474,7 @@ export default function SupportPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Additional Resources</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Explore our comprehensive resources to get the most out of AI Humanizer.
+              Explore our comprehensive resources to get the most out of Raw Writer.
             </p>
           </div>
 

@@ -17,6 +17,13 @@ import {
 } from "firebase/auth";
 import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
 
+// Define PostHog interface
+interface PostHogWindow extends Window {
+  posthog?: {
+    capture: (eventName: string, properties: Record<string, string | null>) => void;
+  };
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
@@ -88,8 +95,8 @@ export const signInWithGoogle = async () => {
       await createUserDocument(result.user);
       
       // Track new user signup in PostHog
-      if (typeof window !== 'undefined' && (window as any).posthog) {
-        (window as any).posthog.capture('user_signed_up', {
+      if (typeof window !== 'undefined' && (window as PostHogWindow).posthog) {
+        (window as PostHogWindow).posthog?.capture('user_signed_up', {
           method: 'google',
           userId: result.user.uid,
           email: result.user.email

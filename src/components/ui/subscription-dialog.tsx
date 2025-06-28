@@ -148,7 +148,7 @@ export function SubscriptionDialog({ isOpen, onClose, subscription, onCancelSubs
             )}
             
             <Button 
-              variant="ghost" 
+              variant="secondary" 
               onClick={onClose}
               className="w-full sm:w-auto"
             >

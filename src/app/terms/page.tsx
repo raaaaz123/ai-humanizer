@@ -17,7 +17,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using AI Humanizer ("the Service"), you agree to be bound by these Terms of Service. 
+            By accessing or using Raw Writer ("the Service"), you agree to be bound by these Terms of Service. 
             If you do not agree to these terms, please do not use the Service.
           </p>
         </section>
@@ -25,7 +25,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">2. Description of Service</h2>
           <p>
-            AI Humanizer provides a platform that uses artificial intelligence to transform AI-generated content into 
+          Raw Writer provides a platform that uses artificial intelligence to transform AI-generated content into 
             natural, human-like text. The Service is provided on an "as is" and "as available" basis.
           </p>
         </section>
@@ -72,7 +72,7 @@ export default function TermsOfServicePage() {
           <h2 className="text-2xl font-semibold mb-4">6. Intellectual Property</h2>
           <p className="mb-4">
             All content and materials available through the Service, including but not limited to text, graphics, logos, 
-            icons, images, audio clips, and software, are the property of AI Humanizer or its licensors and are protected 
+            icons, images, audio clips, and software, are the property of Raw Writer or its licensors and are protected 
             by copyright, trademark, and other intellectual property laws.
           </p>
           <p>
@@ -84,7 +84,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">7. Limitation of Liability</h2>
           <p>
-            To the maximum extent permitted by law, AI Humanizer shall not be liable for any indirect, incidental, special, 
+            To the maximum extent permitted by law, Raw Writer shall not be liable for any indirect, incidental, special, 
             consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other 
             intangible losses, resulting from your access to or use of or inability to access or use the Service.
           </p>
@@ -121,7 +121,7 @@ export default function TermsOfServicePage() {
             If you have any questions about these Terms, please contact us at:
           </p>
           <p className="mt-2">
-            <strong>Email:</strong> terms@aihumanizer.com
+            <strong>Email:</strong> rexatechin@gmail.com
           </p>
         </section>
       </div>

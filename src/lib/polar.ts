@@ -35,12 +35,17 @@ export function getPolarProductId(plan: string, billingPeriod: "monthly" | "annu
   return POLAR_PRODUCT_IDS[planKey][billingPeriod];
 }
 
+// Type for checkout metadata
+type CheckoutMetadata = {
+  [key: string]: string | number | boolean | null;
+};
+
 // Create checkout URL for Polar
 export function createPolarCheckoutUrl(
   productId: string,
   customerId: string,
   customerEmail: string,
-  metadata: Record<string, any> = {}
+  metadata: CheckoutMetadata = {}
 ): string {
   const baseUrl = "/api/checkout";
   const params = new URLSearchParams();

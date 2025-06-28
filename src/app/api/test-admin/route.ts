@@ -1,11 +1,13 @@
-import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase';
-import { runtime, dynamic, preferredRegion, handleApiError, createSuccessResponse } from '../config';
+import { getAdminFirestore } from '@/lib/firebaseAdmin';
+import { handleApiError, createSuccessResponse } from '../config';
+import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
-// Export runtime configuration
-export { runtime, dynamic, preferredRegion };
+// Export runtime configuration directly
+export const runtime = 'nodejs';
+export const preferredRegion = 'auto';
+export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Get the current timestamp
     const timestamp = new Date().toISOString();
@@ -37,7 +39,7 @@ export async function GET(req: NextRequest) {
     
     // Try to read from the test collection
     const snapshot = await adminDb.collection('admin-tests').limit(5).get();
-    const docs = snapshot.docs.map((doc: any) => ({
+    const docs = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
       id: doc.id,
       ...doc.data()
     }));

@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [firebaseInitialized, setFirebaseInitialized] = useState(!!auth);
+  const firebaseInitialized = !!auth;
 
   useEffect(() => {
     // Check if Firebase auth is initialized

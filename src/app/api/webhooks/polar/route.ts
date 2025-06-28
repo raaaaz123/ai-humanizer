@@ -1,25 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/webhooks';
 import { getAdminFirestore } from '@/lib/firebaseAdmin';
-import { runtime, dynamic, preferredRegion, handleApiError, createSuccessResponse } from '../../config';
+import { handleApiError, createSuccessResponse } from '../../config';
+import { Firestore } from 'firebase-admin/firestore';
 
-// Export runtime configuration
-export { runtime, dynamic, preferredRegion };
+// Export runtime configuration directly
+export const runtime = 'nodejs';
+export const preferredRegion = 'auto';
+export const dynamic = 'force-dynamic';
 
 // Define a generic webhook event type
 type WebhookEvent = {
   type: string;
-  data: any;
+  data: Record<string, unknown>;
 };
 
+// Define subscription data type
+interface SubscriptionData {
+  id: string;
+  status: string;
+  metadata?: {
+    userId?: string;
+    planName?: string;
+    credits?: number;
+  };
+  recurring_interval?: string;
+  started_at: string;
+  current_period_end: string;
+  cancel_at_period_end?: boolean;
+}
+
+// Define order data type
+interface OrderData {
+  id: string;
+  metadata?: {
+    userId?: string;
+    credits?: number;
+  };
+  billing_reason?: string;
+  subscription?: {
+    current_period_end: string;
+  };
+}
+
+// Define checkout data type
+interface CheckoutData {
+  id: string;
+  status: string;
+  customer_id: string;
+  customer_external_id?: string;
+  product_id: string;
+  amount: number;
+  currency: string;
+  product?: {
+    name: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
 // Log function for debugging
-const logWebhookEvent = (type: string, data: any) => {
+const logWebhookEvent = (type: string, data: Record<string, unknown>) => {
   const timestamp = new Date().toISOString();
   console.log(`WEBHOOK ${type} [${timestamp}]:`, JSON.stringify(data, null, 2));
 };
 
 // Add a GET handler for testing the route
-export async function GET(req: NextRequest) {
+export async function GET() {
   console.log('WEBHOOK TEST GET REQUEST RECEIVED');
   return createSuccessResponse({ 
     message: 'Polar webhook endpoint is active',
@@ -168,29 +214,29 @@ async function processEvent(event: WebhookEvent) {
     switch (type) {
       case 'subscription.created':
       case 'subscription.active':
-        await handleSubscriptionCreatedOrActive(adminDb, data);
+        await handleSubscriptionCreatedOrActive(adminDb, data as unknown as SubscriptionData);
         break;
         
       case 'subscription.updated':
-        await handleSubscriptionUpdated(adminDb, data);
+        await handleSubscriptionUpdated(adminDb, data as unknown as SubscriptionData);
         break;
         
       case 'subscription.canceled':
       case 'subscription.revoked':
-        await handleSubscriptionCanceledOrRevoked(adminDb, data);
+        await handleSubscriptionCanceledOrRevoked(adminDb, data as unknown as SubscriptionData);
         break;
         
       case 'subscription.uncanceled':
-        await handleSubscriptionUncanceled(adminDb, data);
+        await handleSubscriptionUncanceled(adminDb, data as unknown as SubscriptionData);
         break;
         
       case 'order.created':
-        await handleOrderCreated(adminDb, data);
+        await handleOrderCreated(adminDb, data as unknown as OrderData);
         break;
         
       case 'checkout.created':
       case 'checkout.updated':
-        await handleCheckout(adminDb, data, type);
+        await handleCheckout(adminDb, data as unknown as CheckoutData, type);
         break;
         
       default:
@@ -207,7 +253,7 @@ async function processEvent(event: WebhookEvent) {
 }
 
 // Handle subscription created or active events
-async function handleSubscriptionCreatedOrActive(adminDb: any, data: any) {
+async function handleSubscriptionCreatedOrActive(adminDb: Firestore, data: SubscriptionData) {
   const userId = data.metadata?.userId;
   if (!userId) return;
 
@@ -233,7 +279,7 @@ async function handleSubscriptionCreatedOrActive(adminDb: any, data: any) {
 }
 
 // Handle subscription updated events
-async function handleSubscriptionUpdated(adminDb: any, data: any) {
+async function handleSubscriptionUpdated(adminDb: Firestore, data: SubscriptionData) {
   const userId = data.metadata?.userId;
   if (!userId) return;
 
@@ -241,7 +287,7 @@ async function handleSubscriptionUpdated(adminDb: any, data: any) {
   const userDoc = await userRef.get();
 
   if (userDoc.exists) {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       subscriptionStatus: data.status,
       subscriptionUpdatedAt: new Date(),
       subscriptionCurrentPeriodEnd: new Date(data.current_period_end)
@@ -256,7 +302,7 @@ async function handleSubscriptionUpdated(adminDb: any, data: any) {
 }
 
 // Handle subscription canceled or revoked events
-async function handleSubscriptionCanceledOrRevoked(adminDb: any, data: any) {
+async function handleSubscriptionCanceledOrRevoked(adminDb: Firestore, data: SubscriptionData) {
   const userId = data.metadata?.userId;
   if (!userId) return;
 
@@ -275,7 +321,7 @@ async function handleSubscriptionCanceledOrRevoked(adminDb: any, data: any) {
 }
 
 // Handle subscription uncanceled events
-async function handleSubscriptionUncanceled(adminDb: any, data: any) {
+async function handleSubscriptionUncanceled(adminDb: Firestore, data: SubscriptionData) {
   const userId = data.metadata?.userId;
   if (!userId) return;
 
@@ -297,7 +343,7 @@ async function handleSubscriptionUncanceled(adminDb: any, data: any) {
 }
 
 // Handle order created events
-async function handleOrderCreated(adminDb: any, data: any) {
+async function handleOrderCreated(adminDb: Firestore, data: OrderData) {
   const userId = data.metadata?.userId;
   if (!userId) return;
 
@@ -305,17 +351,20 @@ async function handleOrderCreated(adminDb: any, data: any) {
   const userDoc = await userRef.get();
 
   if (userDoc.exists) {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       lastOrderDate: new Date(),
       lastOrderId: data.id
     };
 
     // If it's a renewal (subscription_cycle), add new credits
-    if (data.billing_reason === 'subscription_cycle') {
+    if (data.billing_reason === 'subscription_cycle' && data.subscription) {
       const credits = data.metadata?.credits || 30000;
-      const currentBalance = userDoc.data().wordBalance || 0;
+      const currentBalance = userDoc.data()?.wordBalance as number || 0;
       updateData.wordBalance = currentBalance + credits;
-      updateData.subscriptionCurrentPeriodEnd = new Date(data.subscription?.current_period_end);
+      
+      if (data.subscription.current_period_end) {
+        updateData.subscriptionCurrentPeriodEnd = new Date(data.subscription.current_period_end);
+      }
     }
 
     await userRef.update(updateData);
@@ -323,7 +372,7 @@ async function handleOrderCreated(adminDb: any, data: any) {
 }
 
 // Handle checkout events
-async function handleCheckout(adminDb: any, data: any, type: string) {
+async function handleCheckout(adminDb: Firestore, data: CheckoutData, type: string) {
   console.log(`${type} Info:`, {
     id: data.id,
     status: data.status,

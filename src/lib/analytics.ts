@@ -1,6 +1,13 @@
 import posthog from 'posthog-js';
 
 /**
+ * Type for analytics properties
+ */
+type AnalyticsProperties = {
+  [key: string]: string | number | boolean | null | undefined | AnalyticsProperties;
+};
+
+/**
  * Utility functions for PostHog analytics
  */
 export const Analytics = {
@@ -9,7 +16,7 @@ export const Analytics = {
    * @param url The URL of the page
    * @param props Additional properties to include with the event
    */
-  trackPageView: (url: string, props: Record<string, any> = {}) => {
+  trackPageView: (url: string, props: AnalyticsProperties = {}) => {
     posthog.capture('$pageview', {
       $current_url: url,
       ...props,
@@ -21,7 +28,7 @@ export const Analytics = {
    * @param eventName The name of the event
    * @param props Additional properties to include with the event
    */
-  trackEvent: (eventName: string, props: Record<string, any> = {}) => {
+  trackEvent: (eventName: string, props: AnalyticsProperties = {}) => {
     posthog.capture(eventName, props);
   },
 
@@ -30,7 +37,7 @@ export const Analytics = {
    * @param userId The user ID
    * @param traits Additional user properties
    */
-  identifyUser: (userId: string, traits: Record<string, any> = {}) => {
+  identifyUser: (userId: string, traits: AnalyticsProperties = {}) => {
     posthog.identify(userId, traits);
   },
 
@@ -45,7 +52,7 @@ export const Analytics = {
    * Register persistent properties that will be sent with every event
    * @param props Properties to register
    */
-  registerProps: (props: Record<string, any>) => {
+  registerProps: (props: AnalyticsProperties) => {
     posthog.register(props);
   },
 
@@ -54,9 +61,11 @@ export const Analytics = {
    * @param enabled Whether tracking should be enabled
    */
   setTrackingEnabled: (enabled: boolean) => {
-    posthog.opt_in_capturing({
-      enable: enabled,
-    });
+    if (enabled) {
+      posthog.opt_in_capturing();
+    } else {
+      posthog.opt_out_capturing();
+    }
   },
 };
 

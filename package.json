@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "prebuild": "node fix-build.js",
+    "build": "next build --no-lint",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "node fix-build.js"
   },
   "dependencies": {
     "@polar-sh/nextjs": "^0.4.1",

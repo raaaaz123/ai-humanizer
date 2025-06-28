@@ -17,11 +17,11 @@ import posthog from "posthog-js";
       wordsPerRequest: "500",
     monthly: {
       price: "$6.99",
-      productId: "003bbf1d-34c1-451e-93a0-0efa9215e5d2"
+      productId: "d3478d30-02fa-406f-bded-f4406620e644"
     },
     annual: {
       price: "$4.99",
-      productId: "003bbf1d-34c1-451e-93a0-0efa9215e5d2"
+      productId: "4a6b4d39-69de-457a-a190-672d934ce3ba"
     },
     features: [
       "500 words per request",
@@ -40,11 +40,11 @@ import posthog from "posthog-js";
       wordsPerRequest: "1,500",
     monthly: {
       price: "$19.99",
-      productId: "baff8c60-012c-494b-9611-86a3da1bbc8a"
+      productId: "766f9e3b-cdec-4380-8be8-e8baea7adeaf"
     },
     annual: {
       price: "$13.99",
-      productId: "baff8c60-012c-494b-9611-86a3da1bbc8a"
+      productId: "c997ffb8-ae50-460c-a43f-0dea553a80a6"
     },
     features: [
       "1,500 words per request",
@@ -67,11 +67,11 @@ import posthog from "posthog-js";
       wordsPerRequest: "3,000",
     monthly: {
       price: "$39.99",
-      productId: "c6dd5223-e9eb-45a8-ba28-3247597419c0"
+      productId: "e0695915-5358-4e04-a6b1-35fc47f8d388"
     },
     annual: {
       price: "$27.99",
-      productId: "c6dd5223-e9eb-45a8-ba28-3247597419c0"
+      productId: "b0d93218-c527-46fa-ad8e-d72fac58fd78"
     },
     features: [
       "3,000 words per request",

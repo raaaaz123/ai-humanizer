@@ -17,7 +17,7 @@ export default function PrivacyPolicyPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Introduction</h2>
           <p>
-            AI Humanizer ("we," "our," or "us") respects your privacy and is committed to protecting your personal data. 
+          Raw Writer ("we," "our," or "us") respects your privacy and is committed to protecting your personal data. 
             This privacy policy explains how we collect, use, disclose, and safeguard your information when you use our service.
           </p>
         </section>
@@ -105,7 +105,7 @@ export default function PrivacyPolicyPage() {
             If you have any questions about this Privacy Policy, please contact us at:
           </p>
           <p className="mt-2">
-            <strong>Email:</strong> privacy@aihumanizer.com
+            <strong>Email:</strong> rexatechin@gmail.com
           </p>
         </section>
       </div>

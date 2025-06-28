@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useCookieConsent } from "@/components/ui/cookie-consent";
-import { doc, collection, addDoc } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 export default function Footer() {
@@ -129,7 +128,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-gray-700 text-center text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} AI Humanizer. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Raw Writer. All rights reserved.</p>
         </div>
       </div>
     </footer>

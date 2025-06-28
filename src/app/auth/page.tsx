@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
@@ -14,10 +14,8 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  const { user, loading, signIn, signOut } = useAuth();
+  const { user, loading, signIn } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
   
   useEffect(() => {
     setMounted(true);
@@ -67,12 +65,13 @@ export default function AuthPage() {
       await signIn();
       posthog.capture("sign_in_completed", { method: "google" });
       // Redirect will be handled by useEffect when user state updates
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Google authentication error:", err);
-      setError(err.message || "Sign in failed. Please try again.");
+      const errorMessage = err instanceof Error ? err.message : "Sign in failed. Please try again.";
+      setError(errorMessage);
       posthog.capture("sign_in_error", { 
         method: "google",
-        error: err.message 
+        error: errorMessage 
       });
       setIsLoading(false);
     }
@@ -112,7 +111,7 @@ export default function AuthPage() {
               </div>
               
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">
-                Welcome to AI Humanizer
+                Welcome to Raw Writer
               </h1>
               
               <p className="text-gray-600 text-lg leading-relaxed">

@@ -1,17 +1,27 @@
-"use client";
-
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { theme } from "@/lib/theme";
+
+export const metadata = {
+  title: 'Cookie Policy | Raw Writer',
+  description: 'Learn about how Raw Writer uses cookies to improve your experience.',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#ffffff'
+}
 
 export default function CookiePolicyPage() {
+  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-bold mb-8 text-center">Cookie Policy</h1>
       
       <div className="prose prose-blue max-w-none">
         <p className="text-lg mb-8">
-          Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          Last updated: {lastUpdated}
         </p>
         
         <section className="mb-8">
@@ -25,7 +35,7 @@ export default function CookiePolicyPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">How We Use Cookies</h2>
           <p className="mb-4">
-            AI Humanizer uses cookies for several purposes, including:
+            Raw Writer uses cookies for several purposes, including:
           </p>
           <ul className="list-disc pl-6 mb-4">
             <li className="mb-2">
@@ -93,7 +103,7 @@ export default function CookiePolicyPage() {
           </p>
           <p>
             To find out more about cookies, including how to see what cookies have been set and how to manage and delete them, 
-            visit <a href="https://www.allaboutcookies.org" target="_blank" rel="noopener noreferrer" className={`text-[${theme.colors.primary}] hover:underline`}>www.allaboutcookies.org</a>.
+            visit <a href="https://www.allaboutcookies.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.allaboutcookies.org</a>.
           </p>
         </section>
         
@@ -103,7 +113,7 @@ export default function CookiePolicyPage() {
             When you first visit our website, you will be presented with a cookie banner that allows you to accept or decline non-essential cookies.
           </p>
           <p>
-            You can change your cookie preferences at any time by clicking on the "Cookie Settings" link in the footer of our website.
+            You can change your cookie preferences at any time by clicking on the &quot;Cookie Settings&quot; link in the footer of our website.
           </p>
         </section>
         
@@ -120,7 +130,7 @@ export default function CookiePolicyPage() {
           <h2 className="text-2xl font-semibold mb-4">Changes to This Cookie Policy</h2>
           <p>
             We may update our Cookie Policy from time to time. We will notify you of any changes by posting the new Cookie Policy 
-            on this page and updating the "Last updated" date.
+            on this page and updating the &quot;Last updated&quot; date.
           </p>
         </section>
         
@@ -130,15 +140,15 @@ export default function CookiePolicyPage() {
             If you have any questions about our use of cookies, please contact us at:
           </p>
           <p className="mt-2">
-            <strong>Email:</strong> privacy@aihumanizer.com
+            <strong>Email:</strong> rexatechin@gmail.com
           </p>
         </section>
       </div>
       
       <div className="mt-12 text-center">
-        <Button asChild>
-          <Link href="/">Return to Home</Link>
-        </Button>
+        <Link href="/" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 py-2 px-4 bg-[#3b82f6] text-white hover:bg-[#2563eb]">
+          Return to Home
+        </Link>
       </div>
     </div>
   );

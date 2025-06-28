@@ -21,7 +21,7 @@ export const TestimonialsSection = () => {
       name: "Sarah Johnson",
       role: "Content Writer",
       company: "CreativeMinds",
-      content: "AI Humanizer has completely transformed my workflow. I can now produce content faster without worrying about AI detection. The humanized text flows naturally and connects with my audience.",
+      content: "Raw Writer has completely transformed my workflow. I can now produce content faster without worrying about AI detection. The humanized text flows naturally and connects with my audience.",
       avatar: "https://randomuser.me/api/portraits/women/32.jpg",
       rating: 5
     },
@@ -39,7 +39,7 @@ export const TestimonialsSection = () => {
       name: "Emily Rodriguez",
       role: "SEO Specialist",
       company: "RankMasters",
-      content: "I've tried several humanization tools, but none compare to AI Humanizer. The text maintains its original meaning while sounding completely human-written. Worth every penny!",
+      content: "I've tried several humanization tools, but none compare to Raw Writer. The text maintains its original meaning while sounding completely human-written. Worth every penny!",
       avatar: "https://randomuser.me/api/portraits/women/65.jpg",
       rating: 4
     },
@@ -48,7 +48,7 @@ export const TestimonialsSection = () => {
       name: "David Thompson",
       role: "Academic Writer",
       company: "EduScribe",
-      content: "Using AI Humanizer for my research summaries has been invaluable. It transforms AI-generated content into natural, flowing text that passes Turnitin with flying colors.",
+      content: "Using Raw Writer for my research summaries has been invaluable. It transforms AI-generated content into natural, flowing text that passes Turnitin with flying colors.",
       avatar: "https://randomuser.me/api/portraits/men/22.jpg",
       rating: 5
     },
@@ -57,7 +57,7 @@ export const TestimonialsSection = () => {
       name: "Olivia Parker",
       role: "Content Strategist",
       company: "MediaPulse",
-      content: "The speed and accuracy of AI Humanizer is impressive. What used to take hours of manual editing now takes minutes, and the results are consistently excellent.",
+      content: "The speed and accuracy of Raw Writer is impressive. What used to take hours of manual editing now takes minutes, and the results are consistently excellent.",
       avatar: "https://randomuser.me/api/portraits/women/48.jpg",
       rating: 5
     },
@@ -83,7 +83,7 @@ export const TestimonialsSection = () => {
     setIsMounted(true);
     const startIdx = currentPage * testimonialsPerPage;
     setActiveTestimonials(testimonials.slice(startIdx, startIdx + testimonialsPerPage));
-  }, [currentPage]);
+  }, [currentPage, testimonials]);
 
   const handleNextPage = () => {
     setCurrentPage((prev) => (prev + 1) % totalPages);
@@ -125,7 +125,7 @@ export const TestimonialsSection = () => {
   useEffect(() => {
     const startIdx = 0;
     setActiveTestimonials(testimonials.slice(startIdx, startIdx + testimonialsPerPage));
-  }, []);
+  }, [testimonials, testimonialsPerPage]);
 
   return (
     <section className="py-20 px-4 bg-white">
@@ -135,7 +135,7 @@ export const TestimonialsSection = () => {
             What Our Users Say
           </h2>
           <p className={`text-[${theme.colors.textLight}] max-w-2xl mx-auto text-lg`}>
-            Discover how AI Humanizer is helping professionals create authentic, human-like content
+            Discover how Raw Writer is helping professionals create authentic, human-like content
           </p>
         </div>
 
@@ -174,7 +174,7 @@ export const TestimonialsSection = () => {
                   <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                 </svg>
                 <p className={`text-[${theme.colors.text}] relative z-10`}>
-                  "{testimonial.content}"
+                  &quot;{testimonial.content}&quot;
                 </p>
               </div>
             </div>
@@ -213,7 +213,7 @@ export const TestimonialsSection = () => {
                       </div>
                     </div>
                     <p className={`text-[${theme.colors.text}] text-sm`}>
-                      "{testimonial.content}"
+                      &quot;{testimonial.content}&quot;
                     </p>
                   </div>
                 </div>

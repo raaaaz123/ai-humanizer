@@ -17,11 +17,6 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         capture_pageview: false, // We'll manually capture pageviews
       })
     }
-    
-    // Return cleanup function
-    return () => {
-      posthog.shutdown()
-    }
   }, [])
 
   // Track pageviews
