@@ -132,7 +132,7 @@ export const TextInputSection = () => {
 
   const handleHumanize = async () => {
     if (!user) {
-      signIn();
+      router.push('/auth?mode=signup&redirect=%2F');
       posthog.capture("sign_in_prompt", { trigger: "humanize_button" });
       return;
     }

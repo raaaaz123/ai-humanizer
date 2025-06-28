@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { getPolarProductId } from "@/lib/polar";
 import posthog from "posthog-js";
+import { useRouter } from "next/navigation";
 
   // Pricing data
   const pricingPlans = {
@@ -95,8 +96,6 @@ import posthog from "posthog-js";
 export default function PricingPage() {
   const { user } = useAuth();
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState<{[key: string]: boolean}>({
     basic: false,
     pro: false,
@@ -104,6 +103,7 @@ export default function PricingPage() {
   });
   const searchParams = useSearchParams();
   const [showCancelledMessage, setShowCancelledMessage] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // Check for checkout cancelled parameter
@@ -125,8 +125,7 @@ export default function PricingPage() {
 
   const handleSelectPlan = (planKey: string) => {
     if (!user?.id) {
-      setErrorMessage('Please log in to continue');
-      setShowErrorDialog(true);
+      router.push('/auth?mode=signup&redirect=%2Fpricing');
       posthog.capture("subscription_login_required", {
         planSelected: planKey,
         billingPeriod: billingPeriod
@@ -171,8 +170,6 @@ export default function PricingPage() {
       
     } catch (error) {
       console.error('Error initiating checkout:', error);
-      setErrorMessage('Failed to process checkout. Please try again.');
-      setShowErrorDialog(true);
       
       // Track checkout error
       posthog.capture("checkout_error", {
@@ -205,24 +202,24 @@ export default function PricingPage() {
   `;
 
   return (
-    <div className="min-h-screen py-16 px-4 md:px-8 lg:px-16 bg-gradient-to-b from-[#f0f7ff] to-white">
+    <div className="min-h-screen py-12 sm:py-16 px-4 md:px-8 lg:px-16 bg-gradient-to-b from-[#f0f7ff] to-white overflow-hidden">
       <style jsx>{pulseAnimation}</style>
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold mb-5 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500">Flexible pricing plans for you</h1>
-        <p className="text-center text-gray-600 mb-16 max-w-2xl mx-auto pb-6">Choose the perfect plan that fits your needs. Cancel anytime.</p>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-5 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500">Flexible pricing plans for you</h1>
+        <p className="text-center text-gray-600 mb-10 sm:mb-16 max-w-2xl mx-auto pb-4 sm:pb-6 text-base sm:text-lg">Choose the perfect plan that fits your needs. Cancel anytime.</p>
         
         {/* Cancelled Message */}
         {showCancelledMessage && (
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg mb-8 flex justify-between items-center shadow-sm">
             <div className="flex items-center">
-              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span>Your checkout was cancelled. No changes were made to your subscription.</span>
+              <span className="text-sm sm:text-base">Your checkout was cancelled. No changes were made to your subscription.</span>
             </div>
             <button 
               onClick={() => setShowCancelledMessage(false)}
-              className="text-yellow-700 hover:text-yellow-900"
+              className="text-yellow-700 hover:text-yellow-900 ml-2 flex-shrink-0"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -232,16 +229,16 @@ export default function PricingPage() {
         )}
         
         {/* Billing Toggle */}
-        <div className="flex justify-center mb-16">
+        <div className="flex justify-center mb-10 sm:mb-16">
           <div className="inline-flex bg-white rounded-full p-1 shadow-md">
             <button 
-              className={`px-8 py-3 rounded-full text-sm font-medium transition-all duration-200 ${billingPeriod === "monthly" ? "bg-blue-500 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100"}`}
+              className={`px-4 sm:px-8 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${billingPeriod === "monthly" ? "bg-blue-500 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100"}`}
               onClick={() => setBillingPeriod("monthly")}
             >
               Monthly
             </button>
             <button 
-              className={`px-8 py-3 rounded-full text-sm font-medium transition-all duration-200 ${billingPeriod === "annual" ? "bg-blue-500 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100"}`}
+              className={`px-4 sm:px-8 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${billingPeriod === "annual" ? "bg-blue-500 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100"}`}
               onClick={() => setBillingPeriod("annual")}
             >
               Annual <span className={`text-xs ml-1 ${billingPeriod === "annual" ? "text-white" : "text-blue-500"}`}>(Save 30%)</span>
@@ -250,40 +247,40 @@ export default function PricingPage() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {Object.entries(pricingPlans).map(([key, plan]) => (
             <Card 
               key={key} 
-              className={`p-6 rounded-xl transition-all duration-300 group
+              className={`p-5 sm:p-6 rounded-xl transition-all duration-300 group
                 ${key === 'pro' 
                   ? 'border-2 border-blue-500 shadow-lg md:scale-105 relative z-10' 
                   : 'border border-[#e2e8f0] hover:border-blue-400 hover:shadow-md'
                 }`}
             >
               {key === 'pro' && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-md">
+                <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-3 sm:px-4 py-1 rounded-full shadow-md">
                   MOST POPULAR
                 </div>
               )}
             
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold">{plan.name}</h2>
-                <p className="text-blue-500 text-sm mt-1">{plan.wordsPerMonth} words per month</p>
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-2xl font-bold">{plan.name}</h2>
+                <p className="text-blue-500 text-xs sm:text-sm mt-1">{plan.wordsPerMonth} words per month</p>
               </div>
             
-              <div className="flex items-baseline mb-8">
-                <span className="text-4xl font-bold">
+              <div className="flex items-baseline mb-6 sm:mb-8">
+                <span className="text-3xl sm:text-4xl font-bold">
                   {billingPeriod === "monthly" ? plan.monthly.price : plan.annual.price}
                 </span>
-                <div className="ml-2 text-sm text-gray-600">
+                <div className="ml-2 text-xs sm:text-sm text-gray-600">
                   <p>Per month</p>
                   <p>Billed {billingPeriod === "monthly" ? "monthly" : "annually"}</p>
                 </div>
               </div>
             
-              <div className="relative mb-8">
+              <div className="relative mb-6 sm:mb-8">
                 <Button 
-                  className={`w-full py-8 text-lg font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg rounded-xl
+                  className={`w-full py-3 sm:py-4 md:py-6 text-base sm:text-lg font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg rounded-xl
                     ${key === 'pro' 
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md pulse-blue' 
                       : 'bg-blue-500 hover:bg-blue-600'
@@ -303,7 +300,7 @@ export default function PricingPage() {
                     <>
                       <span className="relative z-10 flex items-center justify-center">
                         Subscribe Now
-                        <svg className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 h-4 sm:h-5 sm:w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
                       </span>
@@ -318,13 +315,13 @@ export default function PricingPage() {
                 )}
               </div>
             
-              <ul className="space-y-3">
+              <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>{feature}</span>
+                    <span className="text-gray-700">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -332,23 +329,12 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <div className="mt-16 text-center">
-          <p className="mb-4">Need more? <Link href="/contact" className="text-blue-500 hover:text-blue-700 font-medium">Contact Us</Link></p>
-          <p className="text-sm text-gray-500">
+        <div className="mt-10 sm:mt-16 text-center">
+          <p className="mb-3 sm:mb-4 text-sm sm:text-base">Need more? <Link href="/contact" className="text-blue-500 hover:text-blue-700 font-medium">Contact Us</Link></p>
+          <p className="text-xs sm:text-sm text-gray-500">
             By clicking the Subscribe button, you agree to our <Link href="/terms" className="text-blue-500 hover:text-blue-700">Terms of Service</Link> and <Link href="/privacy" className="text-blue-500 hover:text-blue-700">Privacy Policy</Link>.
           </p>
         </div>
-
-        {/* Error Dialog */}
-        {showErrorDialog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl">
-              <h3 className="text-xl font-bold mb-4">Error</h3>
-              <p className="text-red-600">{errorMessage}</p>
-              <Button className="mt-4 bg-blue-500 hover:bg-blue-600" onClick={() => setShowErrorDialog(false)}>Close</Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
