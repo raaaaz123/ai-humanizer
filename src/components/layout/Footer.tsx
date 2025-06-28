@@ -106,7 +106,7 @@ export default function Footer() {
                     </button>
                   </div>
                   {subscriptionStatus === 'success' && (
-                    <p className="text-green-400 text-sm mt-2" role="status">Thank you for subscribing!</p>
+                    <p className="text-green-400 text-sm mt-2" role="status">Thank you for subscribing!.</p>
                   )}
                   {subscriptionStatus === 'error' && (
                     <p className="text-red-400 text-sm mt-2" role="alert">Failed to subscribe. Please try again.</p>
