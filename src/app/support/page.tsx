@@ -21,9 +21,7 @@ import {
   Phone,
   Globe,
   Users,
-  Zap,
-  Shield,
-  Star
+  Shield
 } from "lucide-react";
 
 interface FormData {
@@ -123,7 +121,6 @@ export default function SupportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isMounted, setIsMounted] = useState(false);
-  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -176,14 +173,18 @@ export default function SupportPage() {
     setSubmitStatus('idle');
 
     try {
-      // Add document to Firestore
+      // Add document to Firestore with public access
       await addDoc(collection(db, "support_messages"), {
         name: formData.name.trim(),
         email: formData.email.trim(),
         subject: formData.subject.trim(),
         message: formData.message.trim(),
         timestamp: serverTimestamp(),
-        status: "pending"
+        status: "pending",
+        // Add a flag to indicate this is a public submission
+        isPublicSubmission: true,
+        userAgent: navigator.userAgent,
+        referrer: document.referrer || 'direct'
       });
 
       setSubmitStatus('success');
@@ -463,15 +464,6 @@ export default function SupportPage() {
                     Email Support
                   </Button>
                 </Link>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowChat(true)}
-                  className="hover:bg-blue-50"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Live Chat
-                </Button>
               </div>
             </div>
           </div>
@@ -486,22 +478,7 @@ export default function SupportPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="text-center hover:shadow-lg transition-shadow border-0 shadow-md">
-              <CardContent className="p-8">
-                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl mx-auto mb-4 flex items-center justify-center">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Quick Start Guide</h3>
-                <p className="text-gray-600 mb-4">
-                  Get up and running with AI Humanizer in just a few minutes.
-                </p>
-                <Button variant="outline" size="sm">
-                  View Guide
-                </Button>
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-8 max-w-md mx-auto">
             <Card className="text-center hover:shadow-lg transition-shadow border-0 shadow-md">
               <CardContent className="p-8">
                 <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl mx-auto mb-4 flex items-center justify-center">
@@ -518,66 +495,9 @@ export default function SupportPage() {
                 </Link>
               </CardContent>
             </Card>
-
-            <Card className="text-center hover:shadow-lg transition-shadow border-0 shadow-md">
-              <CardContent className="p-8">
-                <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-xl mx-auto mb-4 flex items-center justify-center">
-                  <Star className="w-6 h-6" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Best Practices</h3>
-                <p className="text-gray-600 mb-4">
-                  Tips and tricks to get the best results from AI Humanizer.
-                </p>
-                <Button variant="outline" size="sm">
-                  Read Tips
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
-
-      {/* Chat Bubble */}
-      {isMounted && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Button
-            onClick={() => setShowChat(!showChat)}
-            className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-          >
-            <MessageCircle className="w-6 h-6" />
-          </Button>
-          
-          {showChat && (
-            <div className="absolute bottom-16 right-0 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 p-6 transform transition-all duration-200 animate-in slide-in-from-bottom-2">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Live Chat</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowChat(false)}
-                  className="w-8 h-8 p-0"
-                >
-                  ×
-                </Button>
-              </div>
-              <p className="text-gray-600 text-sm mb-4">
-                Hi! 👋 How can we help you today?
-              </p>
-              <div className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full justify-start text-left">
-                  I need help with my account
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start text-left">
-                  I have a billing question
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start text-left">
-                  Technical support needed
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </main>
   );
 }
