@@ -15,7 +15,7 @@ import {
   getIdToken,
   sendEmailVerification,
 } from "firebase/auth";
-import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, doc, setDoc, serverTimestamp, getDoc, updateDoc } from "firebase/firestore";
 
 // Define PostHog interface
 interface PostHogWindow extends Window {
@@ -85,37 +85,60 @@ const clearSession = async () => {
 
 export const signInWithGoogle = async () => {
   try {
+    // Use popup-based authentication instead of redirect
     const result = await signInWithPopup(auth, googleProvider);
     
-    // Check if this is a new user (first sign in)
-    const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+    // Get user from result
+    const { user } = result;
+    console.log("Google sign-in successful", user.uid);
     
-    if (isNewUser) {
-      // Create user document in Firestore
-      await createUserDocument(result.user);
-      
-      // Track new user signup in PostHog
-      if (typeof window !== 'undefined' && (window as PostHogWindow).posthog) {
-        (window as PostHogWindow).posthog?.capture('user_signed_up', {
-          method: 'google',
-          userId: result.user.uid,
-          email: result.user.email
-        });
-      }
+    // Check if user exists in Firestore
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      // New user - create user document
+      console.log("Creating new user document for", user.uid);
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        wordBalance: 200, // Default word balance for new users
+        subscription: 'Free Plan',
+        subscriptionStatus: 'free'
+      });
+    } else {
+      // Existing user - update login timestamp
+      console.log("Updating existing user", user.uid);
+      await updateDoc(userRef, {
+        lastLogin: serverTimestamp(),
+        // Don't update these fields if they already exist
+        email: user.email || userSnap.data().email,
+        displayName: user.displayName || userSnap.data().displayName,
+        photoURL: user.photoURL || userSnap.data().photoURL
+      });
     }
     
     // Create session cookie
-    await createSession(result.user);
+    try {
+      const idToken = await user.getIdToken();
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
+      });
+    } catch (error) {
+      console.error("Error creating session:", error);
+    }
     
-    // Update last login time in Firestore
-    const userRef = doc(db, "users", result.user.uid);
-    await setDoc(userRef, {
-      lastLogin: serverTimestamp(),
-    }, { merge: true });
-    
-    return result.user;
+    return result;
   } catch (error) {
-    console.error("Error signing in with Google", error);
+    console.error("Error signing in with Google:", error);
     throw error;
   }
 };
@@ -204,9 +227,9 @@ const createUserDocument = async (user: User) => {
     // Create user document with default values
     await setDoc(userRef, {
       uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
+      email: user.email || null,
+      displayName: user.displayName || null,
+      photoURL: user.photoURL || null,
       createdAt: serverTimestamp(),
       lastLogin: serverTimestamp(),
       wordBalance: 250, // Default free words

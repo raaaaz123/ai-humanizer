@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -38,6 +38,8 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (!loading && user) {
+      console.log("User detected in auth page, redirecting to home", user.uid);
+      
       // If user exists, identify them in PostHog
       posthog.identify(user.uid, {
         email: user.email,
@@ -62,8 +64,9 @@ export default function AuthPage() {
     setIsLoading(true);
     
     try {
+      console.log("Starting Google auth flow with popup");
       await signIn();
-      posthog.capture("sign_in_completed", { method: "google" });
+      posthog.capture("sign_in_initiated", { method: "google" });
       // Redirect will be handled by useEffect when user state updates
     } catch (err: unknown) {
       console.error("Google authentication error:", err);
@@ -142,7 +145,7 @@ export default function AuthPage() {
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce delay-100"></div>
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce delay-200"></div>
                   </div>
-                  <span>Signing you in...</span>
+                  <span>Opening sign-in popup...</span>
                 </div>
               ) : (
                 <>

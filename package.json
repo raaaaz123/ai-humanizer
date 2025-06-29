@@ -11,6 +11,7 @@
     "clean": "node fix-build.js"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.14.2",
     "@polar-sh/nextjs": "^0.4.1",
     "@polar-sh/sdk": "^0.34.2",
     "@prisma/client": "^6.10.1",

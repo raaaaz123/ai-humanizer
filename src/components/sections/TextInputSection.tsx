@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { theme } from "@/lib/theme";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 export const TextInputSection = () => {
   const [inputText, setInputText] = useState("");
@@ -21,6 +22,7 @@ export const TextInputSection = () => {
   const [showOutput, setShowOutput] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [error, setError] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { user, userData, signIn } = useAuth();
   const router = useRouter();
 
@@ -32,7 +34,13 @@ export const TextInputSection = () => {
     
     // Get the plan name and log it for debugging
     const plan = userData.subscription || 'Free Plan';
-    console.log('Current plan:', plan, 'Word balance:', userData.wordBalance);
+    console.log('Current plan:', plan, 'Word balance:', userData.wordBalance, 'Status:', userData.subscriptionStatus);
+    
+    // First check if subscription is active
+    if (userData.subscriptionStatus !== 'active' && plan !== 'Free Plan') {
+      console.log('Subscription not active, using Free Plan limits');
+      return 250; // Use free plan limit if subscription is not active
+    }
     
     // Check for plan names - handle different variations
     if (plan === 'Basic' || plan.includes('Basic')) {
@@ -119,6 +127,12 @@ export const TextInputSection = () => {
       });
     } catch (err) {
       console.error("Failed to read clipboard: ", err);
+      // Show permission error message
+      if (err instanceof Error && err.name === 'NotAllowedError') {
+        alert("Please allow clipboard access to paste text. You can also type your text directly in the input field.");
+      } else {
+        alert("Failed to paste from clipboard. You can type your text directly in the input field.");
+      }
     }
   };
 
@@ -305,18 +319,40 @@ export const TextInputSection = () => {
     }
   `;
 
+  // Add function to refresh user data
+  const refreshUserData = async () => {
+    if (!user) return;
+    
+    try {
+      setIsRefreshing(true);
+      // Force a reload to refresh user data from Firestore
+      window.location.reload();
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <section className="py-16 px-4 bg-gray-50 min-h-screen">
       <style jsx>{glowAnimation}</style>
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
-            Transform AI Text to Human
-          </h2>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
+            Free AI Humanizer: Make AI Text Undetectable
+          </h1>
           <p className={`text-[${theme.colors.textLight}] max-w-3xl mx-auto text-lg md:text-xl leading-relaxed`}>
-            Paste your AI-generated content and our advanced AI will transform it into natural, human-like text that connects with your audience.
+            Transform your AI-generated content from ChatGPT, Gemini, Claude, or Bard into natural, human-like text that bypasses all AI detectors. Our advanced AI humanizer ensures your content remains 100% undetectable.
           </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2 text-sm text-gray-600">
+            <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Bypass Turnitin</span>
+            <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Bypass GPTZero</span>
+            <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Bypass Content at Scale</span>
+            <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Bypass Originality.ai</span>
+            <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Bypass Copyleaks</span>
+          </div>
           <Button
             variant="primary"
             size="lg"
@@ -349,30 +385,32 @@ export const TextInputSection = () => {
           <div className="relative">
             {/* Empty state with centered paste button */}
             {!inputText && isMounted && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
                 <Button 
                   variant="outline" 
                   size="lg"
                   onClick={handlePaste}
-                  className="flex items-center gap-3 bg-white/95 backdrop-blur-sm hover:bg-white shadow-md border-2 border-dashed border-gray-300 hover:border-blue-400 transition-all duration-300 px-8 py-4 rounded-xl"
+                  className="flex items-center gap-3 bg-white/95 backdrop-blur-sm hover:bg-white shadow-md border-2 border-dashed border-gray-300 hover:border-blue-400 transition-all duration-300 px-8 py-4 rounded-xl mb-4 pointer-events-auto"
                 >
                   <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                   <span className="font-medium">Paste AI-generated text</span>
                 </Button>
+                <p className="text-gray-500 text-sm">or start typing directly in the input field below</p>
               </div>
             )}
             
             <TextArea 
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Paste your AI-generated text here... (${MIN_WORDS}-${wordLimit} words)`}
+              placeholder={`Type or paste your AI-generated text here... (${MIN_WORDS}-${wordLimit} words)`}
               className={cn(
                 "min-h-[380px] md:min-h-[420px] p-6 text-base resize-none",
                 "bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 "border border-gray-200 shadow-inner rounded-xl transition-all duration-300",
-                "placeholder:text-gray-400 leading-relaxed"
+                "placeholder:text-gray-400 leading-relaxed",
+                !inputText && "bg-transparent"
               )}
             />
             <div className={cn(
@@ -402,6 +440,16 @@ export const TextInputSection = () => {
                   <span className="text-blue-600 font-medium">{userData.subscription || 'Free Plan'}</span>: 
                   <strong className="text-blue-600 ml-1">{userData.wordBalance.toLocaleString()}</strong> words balance • 
                   <span className="text-blue-600 ml-1">{wordLimit.toLocaleString()}</span> max per request
+                  <button 
+                    onClick={refreshUserData} 
+                    disabled={isRefreshing}
+                    className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                    title="Refresh subscription data"
+                  >
+                    <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
                 </span>
               </div>
             )}
@@ -427,26 +475,21 @@ export const TextInputSection = () => {
           </div>
         </div>
 
-        {/* Processing Status */}
+        {/* Processing Status with Lottie Animation */}
         {isLoading && (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <div className="w-2 h-6 bg-blue-500 rounded-full mr-3"></div>
-                <h3 className="text-lg font-semibold text-gray-800">Processing your text...</h3>
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-48 h-48 mb-4">
+                <DotLottieReact
+                  src="/lottie.json"
+                  loop
+                  autoplay
+                />
               </div>
-              <span className={`text-sm font-medium text-[${theme.colors.primary}] bg-blue-50 px-3 py-1 rounded-lg`}>{progress}%</span>
-            </div>
-            <Progress 
-              value={progress} 
-              className={cn("h-3 bg-gray-100 rounded-full overflow-hidden")}
-            />
-            <div className={`mt-4 text-sm text-[${theme.colors.textLight}] flex items-center`}>
-              <svg className={`animate-spin -ml-1 mr-3 h-5 w-5 text-[${theme.colors.primary}]`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span className="font-medium">Applying humanization algorithms...</span>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Humanizing your text...</h3>
+              <p className="text-gray-600 text-center max-w-md">
+                Our advanced AI is transforming your content into natural, human-like text that bypasses AI detection.
+              </p>
             </div>
           </div>
         )}

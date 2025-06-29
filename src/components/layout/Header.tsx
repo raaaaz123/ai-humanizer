@@ -7,23 +7,51 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { theme } from "@/lib/theme";
 import posthog from "posthog-js";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export const Header = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, signIn, userData } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Handle scroll effect
   useEffect(() => {
+    setMounted(true);
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
     };
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  
+  // Log userData for debugging
+  useEffect(() => {
+    if (userData) {
+      console.log("Header - User Data:", {
+        subscription: userData.subscription,
+        subscriptionStatus: userData.subscriptionStatus,
+        wordBalance: userData.wordBalance
+      });
+    }
+  }, [userData]);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
   
   const navigateToAuth = (mode: string, redirect?: string) => {
@@ -39,6 +67,28 @@ export const Header = () => {
     router.push(path);
   };
 
+  // Don't render auth-dependent content until mounted
+  const shouldRenderAuth = mounted && !loading;
+
+  const handleLogin = async () => {
+    try {
+      await signIn();
+      // Refresh page to ensure we have the latest user data
+      window.location.reload();
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push('/');
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
   return (
     <header className={`border-b border-gray-200 bg-white sticky top-0 z-50 ${scrolled ? 'shadow-md' : 'shadow-sm'} transition-shadow duration-300`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
@@ -47,69 +97,15 @@ export const Header = () => {
           className="flex items-center gap-2 group"
           onClick={() => posthog.capture("navigation", { destination: "home", source: "logo" })}
         >
-          <div className="relative w-10 h-10 flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-105">
-            <svg 
-              className="w-7 h-7 text-white transform group-hover:rotate-12 transition-transform duration-300" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {/* Book base */}
-              <path 
-                d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              />
-              <path 
-                d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                fill="rgba(255,255,255,0.1)"
-              />
-              
-              {/* Book pages */}
-              <path 
-                d="M8 6H16" 
-                stroke="currentColor" 
-                strokeWidth="1.2" 
-                strokeLinecap="round" 
-              />
-              <path 
-                d="M8 10H13" 
-                stroke="currentColor" 
-                strokeWidth="1.2" 
-                strokeLinecap="round" 
-              />
-              
-              {/* Pen */}
-              <path 
-                d="M15.5 14.5L19 11M19.5 10.5L17 8L11 14V17H14L19.5 10.5Z" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                fill="rgba(255,255,255,0.2)"
-              />
-              <path 
-                d="M19.5 10.5L17 8" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              />
-              
-              {/* Ink drop */}
-              <circle 
-                cx="13.5" 
-                cy="15.5" 
-                r="0.75" 
-                fill="white" 
-              />
-            </svg>
+          <div className="relative">
+            <Image
+              src="/raw_logo.png"
+              alt="Raw Writer Logo"
+              width={40}
+              height={40}
+              className="transform group-hover:scale-105 transition-all duration-300"
+              priority
+            />
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
           </div>
           <div className="flex flex-col">
@@ -178,7 +174,7 @@ export const Header = () => {
 
         {/* Desktop Auth/Profile */}
         <div className="hidden md:flex items-center gap-4">
-          {user && (
+          {shouldRenderAuth && user && (
             <Link
               href="/pricing"
               className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-sm font-medium rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg"
@@ -191,7 +187,7 @@ export const Header = () => {
             </Link>
           )}
 
-          {!loading && (
+          {shouldRenderAuth && (
             <>
               {user ? (
                 <Link 
@@ -245,7 +241,7 @@ export const Header = () => {
 
         {/* Mobile menu button */}
         <div className="flex md:hidden items-center gap-3">
-          {!loading && user && (
+          {shouldRenderAuth && user && (
             <Link 
               href="/profile"
               onClick={() => posthog.capture("navigation", { destination: "profile", source: "header" })}
@@ -300,28 +296,40 @@ export const Header = () => {
               <Link 
                 href="/" 
                 className={`block px-4 py-3 rounded-lg font-medium ${pathname === '/' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                onClick={() => handleNavigation('/', 'home')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigation('/', 'home');
+                }}
               >
                 Home
               </Link>
               <Link 
                 href="/pricing" 
                 className={`block px-4 py-3 rounded-lg font-medium ${pathname === '/pricing' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                onClick={() => handleNavigation('/pricing', 'pricing')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigation('/pricing', 'pricing');
+                }}
               >
                 Pricing
               </Link>
               <Link 
                 href="/support" 
                 className={`block px-4 py-3 rounded-lg font-medium ${pathname === '/support' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                onClick={() => handleNavigation('/support', 'support')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigation('/support', 'support');
+                }}
               >
                 Support
               </Link>
               <Link 
                 href="/history" 
                 className={`block px-4 py-3 rounded-lg font-medium ${pathname === '/history' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'} flex items-center`}
-                onClick={() => handleNavigation('/history', 'history')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigation('/history', 'history');
+                }}
               >
                 <svg 
                   className="w-5 h-5 mr-2" 
@@ -340,12 +348,15 @@ export const Header = () => {
               </Link>
             </nav>
 
-            {user && (
+            {shouldRenderAuth && user && (
               <div className="pt-2 pb-1">
                 <Link
                   href="/pricing"
                   className="flex items-center justify-center w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium rounded-lg"
-                  onClick={() => handleNavigation('/pricing', 'get_more_words')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavigation('/pricing', 'get_more_words');
+                  }}
                 >
                   <span>Get More Words</span>
                   <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -355,18 +366,24 @@ export const Header = () => {
               </div>
             )}
 
-            {!loading && !user && (
+            {shouldRenderAuth && !user && (
               <div className="pt-2 pb-1 grid grid-cols-2 gap-3">
                 <Button 
                   variant="outline" 
-                  onClick={() => navigateToAuth('signin')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigateToAuth('signin');
+                  }}
                   className="w-full border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                 >
                   Sign In
                 </Button>
                 <Button 
                   variant="primary" 
-                  onClick={() => navigateToAuth('signup')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigateToAuth('signup');
+                  }}
                   className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
                 >
                   Sign Up

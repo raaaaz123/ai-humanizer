@@ -10,16 +10,32 @@ import { SubscriptionDialog } from "@/components/ui/subscription-dialog";
 import posthog from "posthog-js";
 
 export default function ProfilePage() {
-  const { user, loading, signOut } = useAuth();
+  const { user, userData, loading, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [successDetails, setSuccessDetails] = useState<{
     plan?: string;
     credits?: string;
     transactionId?: string;
   }>({});
+
+  // Add function to refresh user data
+  const refreshUserData = async () => {
+    if (!user) return;
+    
+    try {
+      setIsRefreshing(true);
+      // Force a reload to refresh user data from Firestore
+      window.location.reload();
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -183,30 +199,43 @@ export default function ProfilePage() {
               </svg>
               <h1 className="text-2xl font-bold">Account</h1>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                signOut();
-                router.push("/");
-              }}
-              className="text-[#ef4444] hover:bg-[#fef2f2] hover:text-[#ef4444] border-none"
-            >
-              <svg className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Log out
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={refreshUserData}
+                disabled={isRefreshing}
+                className="border-[#3b82f6] text-[#3b82f6] hover:bg-[#eff6ff] hover:text-[#3b82f6]"
+              >
+                <svg className={`h-5 w-5 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  signOut();
+                  router.push("/");
+                }}
+                className="text-[#ef4444] hover:bg-[#fef2f2] hover:text-[#ef4444] border-none"
+              >
+                <svg className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Log out
+              </Button>
+            </div>
           </div>
           
           <div className="mt-6">
             <div className="mb-4">
               <label className="block text-sm font-medium text-[#64748b] mb-1">Name</label>
-              <p className="text-lg">{user.displayName || 'Not provided'}</p>
+              <p className="text-lg">{userData?.displayName || user?.displayName || 'Not provided'}</p>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-[#64748b] mb-1">Email</label>
-              <p className="text-lg">{user.email}</p>
+              <p className="text-lg">{userData?.email || user?.email || 'Not provided'}</p>
             </div>
           </div>
         </div>
@@ -223,9 +252,9 @@ export default function ProfilePage() {
             </div>
             
             <div className="mb-6">
-              <p className="text-4xl font-bold">{formatCredits(user.wordBalance || 0)}</p>
+              <p className="text-4xl font-bold">{formatCredits(userData?.wordBalance || user?.wordBalance || 0)}</p>
               <p className="text-[#64748b]">available words</p>
-              {user.lastOrderDate && (
+              {user?.lastOrderDate && (
                 <p className="text-sm text-[#64748b] mt-2">
                   Last purchase: {formatDistanceToNow(new Date(user.lastOrderDate), { addSuffix: true })}
                 </p>
@@ -250,34 +279,34 @@ export default function ProfilePage() {
             
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl font-bold">{user.subscription || 'Free Plan'}</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSubscriptionBadgeColor(user.subscriptionStatus)}`}>
-                  {user.subscriptionStatus === 'active' ? 'Active' : 
-                   user.subscriptionStatus === 'cancelled' ? 'Cancelled' : 'Free'}
+                <span className="text-2xl font-bold">{userData?.subscription || user?.subscription || 'Free Plan'}</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSubscriptionBadgeColor(userData?.subscriptionStatus || user?.subscriptionStatus)}`}>
+                  {userData?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'active' ? 'Active' : 
+                   userData?.subscriptionStatus === 'cancelled' || user?.subscriptionStatus === 'cancelled' ? 'Cancelled' : 'Free'}
                 </span>
               </div>
               
-              {user.subscriptionInterval && (
+              {(userData?.subscriptionInterval || user?.subscriptionInterval) && (
                 <p className="text-sm text-[#64748b] mb-2">
-                  Billing: {user.subscriptionInterval === 'month' ? 'Monthly' : 'Annually'}
+                  Billing: {(userData?.subscriptionInterval || user?.subscriptionInterval) === 'month' ? 'Monthly' : 'Annually'}
                 </p>
               )}
               
-              {user.subscriptionCurrentPeriodEnd && (
+              {(userData?.subscriptionCurrentPeriodEnd || user?.subscriptionCurrentPeriodEnd) && (
                 <p className="text-sm text-[#64748b] mb-2">
-                  Next billing date: {new Date(user.subscriptionCurrentPeriodEnd).toLocaleDateString()}
+                  Next billing date: {new Date(userData?.subscriptionCurrentPeriodEnd || user?.subscriptionCurrentPeriodEnd || new Date()).toLocaleDateString()}
                 </p>
               )}
               
-              {user.subscriptionStartDate && (
+              {(userData?.subscriptionStartDate || user?.subscriptionStartDate) && (
                 <p className="text-sm text-[#64748b] mb-2">
-                  Started: {formatDistanceToNow(new Date(user.subscriptionStartDate), { addSuffix: true })}
+                  Started: {formatDistanceToNow(new Date(userData?.subscriptionStartDate || user?.subscriptionStartDate || new Date()), { addSuffix: true })}
                 </p>
               )}
               
-              {user.subscriptionUpdatedAt && (
+              {(userData?.subscriptionUpdatedAt || user?.subscriptionUpdatedAt) && (
                 <p className="text-sm text-[#64748b]">
-                  Last updated: {formatDistanceToNow(new Date(user.subscriptionUpdatedAt), { addSuffix: true })}
+                  Last updated: {formatDistanceToNow(new Date(userData?.subscriptionUpdatedAt || user?.subscriptionUpdatedAt || new Date()), { addSuffix: true })}
                 </p>
               )}
             </div>
@@ -286,14 +315,17 @@ export default function ProfilePage() {
               variant="outline" 
               className="w-full border-2 border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-white"
               onClick={() => {
-                if (user?.subscription && user?.subscriptionStatus === 'active') {
+                if ((userData?.subscription || user?.subscription) && 
+                    (userData?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'active')) {
                   setShowSubscriptionDialog(true);
                 } else {
                   router.push('/pricing');
                 }
               }}
             >
-              {user?.subscription && user?.subscriptionStatus === 'active' ? 'Manage Subscription' : 'Upgrade Now'}
+              {(userData?.subscription || user?.subscription) && 
+               (userData?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'active') 
+                ? 'Manage Subscription' : 'Upgrade Now'}
             </Button>
           </div>
         </div>
@@ -305,14 +337,14 @@ export default function ProfilePage() {
           isOpen={showSubscriptionDialog}
           onClose={() => setShowSubscriptionDialog(false)}
           subscription={{
-            name: user.subscription || 'Free Plan',
-            status: user.subscriptionStatus || 'free',
-            interval: user.subscriptionInterval || 'month',
-            startDate: user.subscriptionStartDate,
-            endDate: user.subscriptionEndDate,
-            currentPeriodEnd: user.subscriptionCurrentPeriodEnd,
-            updatedAt: user.subscriptionUpdatedAt,
-            wordBalance: user.wordBalance || 0
+            name: userData?.subscription || user?.subscription || 'Free Plan',
+            status: userData?.subscriptionStatus || user?.subscriptionStatus || 'free',
+            interval: userData?.subscriptionInterval || user?.subscriptionInterval || 'month',
+            startDate: userData?.subscriptionStartDate || user?.subscriptionStartDate,
+            endDate: userData?.subscriptionEndDate || user?.subscriptionEndDate,
+            currentPeriodEnd: userData?.subscriptionCurrentPeriodEnd || user?.subscriptionCurrentPeriodEnd,
+            updatedAt: userData?.subscriptionUpdatedAt || user?.subscriptionUpdatedAt,
+            wordBalance: userData?.wordBalance || user?.wordBalance || 0
           }}
           onCancelSubscription={handleCancelSubscription}
         />
