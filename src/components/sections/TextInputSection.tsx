@@ -548,7 +548,7 @@ export const TextInputSection = () => {
               
               <div className="flex items-center gap-3">
                 <div className={`text-sm text-[${theme.colors.textLight}] bg-white px-3 py-1 rounded-lg border border-gray-200`}>
-                  <span className="font-medium">AI Detection:</span> <span className="text-green-600 font-semibold">0.1% (Undetectable)</span>
+                  <span className="font-medium"></span> <span className="text-green-600 font-semibold">100% Human Written</span>
                 </div>
               </div>
             </div>

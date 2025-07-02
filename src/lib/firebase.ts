@@ -106,7 +106,7 @@ export const signInWithGoogle = async () => {
         photoURL: user.photoURL,
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
-        wordBalance: 200, // Default word balance for new users
+        wordBalance: 250, // Default word balance for new users
         subscription: 'Free Plan',
         subscriptionStatus: 'free'
       });
