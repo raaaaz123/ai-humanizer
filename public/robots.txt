@@ -8,4 +8,21 @@ Sitemap: https://rawwriter.com/sitemap.xml
 # Disallow admin and private areas
 Disallow: /api/
 Disallow: /admin/
-Disallow: /private/ 
+Disallow: /private/
+
+# Allow specific search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Crawl delay for bots
+User-agent: *
+Crawl-delay: 10 

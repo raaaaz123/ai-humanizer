@@ -19,9 +19,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Raw Writer - Free AI Humanizer | Bypass AI Detectors | Make AI Text Undetectable",
-  description: "Raw Writer is the top AI humanizer tool that transforms AI-generated content into 100% human-like text. Bypass AI detectors like Turnitin, GPTZero, and Content at Scale. Make your ChatGPT, Gemini, Claude, and Bard content undetectable.",
-  keywords: "AI humanizer, bypass AI detection, undetectable AI text, humanize AI content, AI content humanizer, ChatGPT humanizer, AI text converter, AI to human text, AI writing tool, AI detector bypass, make AI text human, free AI humanizer",
+  title: "Raw Writer - #1 AI Humanizer Tool | Bypass AI Detectors | 100% Undetectable AI Text",
+  description: "Raw Writer is the leading AI humanizer tool that transforms AI-generated content into 100% human-like text. Bypass AI detectors like Turnitin, GPTZero, Content at Scale, Originality.ai, and ZeroGPT with our advanced AI text converter. Make your ChatGPT, Gemini, Claude, and Bard content completely undetectable.",
+  keywords: "AI humanizer, bypass AI detection, undetectable AI text, humanize AI content, AI content humanizer, ChatGPT humanizer, AI text converter, AI to human text, AI writing tool, AI detector bypass, make AI text human, free AI humanizer, Raw Writer, Turnitin bypass, GPTZero bypass, AI detection remover, humanize ChatGPT text",
+  authors: [{ name: "Raw Writer Team" }],
+  creator: "Raw Writer",
+  publisher: "Raw Writer",
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -56,8 +59,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: 'Raw Writer - Free AI Humanizer | Bypass AI Detectors | Make AI Text Undetectable',
-    description: 'Raw Writer transforms AI-generated content into 100% human-like text. Bypass AI detectors like Turnitin, GPTZero, and Content at Scale with our advanced AI humanizer.',
+    title: 'Raw Writer - #1 AI Humanizer Tool | Bypass AI Detectors | 100% Undetectable AI Text',
+    description: 'Raw Writer transforms AI-generated content into 100% human-like text. Bypass AI detectors like Turnitin, GPTZero, and Content at Scale with our advanced AI humanizer. Try our free AI text converter today!',
     url: 'https://rawwriter.com',
     siteName: 'Raw Writer',
     images: [
@@ -65,7 +68,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Raw Writer - AI Humanizer',
+        alt: 'Raw Writer - AI Humanizer Tool',
       }
     ],
     locale: 'en_US',
@@ -73,17 +76,21 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Raw Writer - Free AI Humanizer | Bypass AI Detectors',
-    description: 'Transform AI-generated content into 100% human-like text. Bypass AI detectors with our advanced AI humanizer.',
+    title: 'Raw Writer - #1 AI Humanizer Tool | Bypass AI Detectors',
+    description: 'Transform AI-generated content into 100% human-like text. Bypass AI detectors with our advanced AI humanizer. Try our free AI text converter today!',
     images: ['/twitter-image.png'],
     creator: '@rawwriter',
   },
   alternates: {
     canonical: 'https://rawwriter.com',
+    languages: {
+      'en-US': 'https://rawwriter.com',
+    },
   },
   robots: {
     index: true,
     follow: true,
+    nocache: false,
     googleBot: {
       index: true,
       follow: true,
@@ -96,6 +103,7 @@ export const metadata: Metadata = {
     google: 'verification_token',
     yandex: 'verification_token',
   },
+  category: 'AI Tools',
 };
 
 export default function RootLayout({

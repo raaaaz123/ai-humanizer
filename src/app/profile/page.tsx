@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import { formatDistanceToNow } from 'date-fns';
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Loader2, RefreshCw } from "lucide-react";
 import { SubscriptionDialog } from "@/components/ui/subscription-dialog";
 import posthog from "posthog-js";
 

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
+import { Metadata } from "next";
 import { 
   Mail, 
   MessageCircle, 

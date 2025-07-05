@@ -1,16 +1,8 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-export const metadata = {
-  title: 'Cookie Policy | Raw Writer',
-  description: 'Learn about how Raw Writer uses cookies to improve your experience.',
-}
-
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#ffffff'
-}
+import { theme } from "@/lib/theme";
 
 export default function CookiePolicyPage() {
   const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });

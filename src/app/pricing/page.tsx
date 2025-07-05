@@ -10,12 +10,12 @@ import { getPolarProductId } from "@/lib/polar";
 import posthog from "posthog-js";
 import { useRouter } from "next/navigation";
 
-  // Pricing data
-  const pricingPlans = {
-    basic: {
-      name: "Basic",
-      wordsPerMonth: "5,000",
-      wordsPerRequest: "500",
+// Pricing data
+const pricingPlans = {
+  basic: {
+    name: "Basic",
+    wordsPerMonth: "5,000",
+    wordsPerRequest: "500",
     monthly: {
       price: "$6.99",
       productId: "d3478d30-02fa-406f-bded-f4406620e644"
@@ -34,11 +34,11 @@ import { useRouter } from "next/navigation";
       "Unlimited AI detection",
       "20 languages supported"
     ]
-    },
-    pro: {
-      name: "Pro",
-      wordsPerMonth: "15,000",
-      wordsPerRequest: "1,500",
+  },
+  pro: {
+    name: "Pro",
+    wordsPerMonth: "15,000",
+    wordsPerRequest: "1,500",
     monthly: {
       price: "$19.99",
       productId: "766f9e3b-cdec-4380-8be8-e8baea7adeaf"
@@ -61,11 +61,11 @@ import { useRouter } from "next/navigation";
       "Unlimited grammar checks",
       "Fast mode"
     ]
-    },
-    ultra: {
-      name: "Ultra",
-      wordsPerMonth: "30,000",
-      wordsPerRequest: "3,000",
+  },
+  ultra: {
+    name: "Ultra",
+    wordsPerMonth: "30,000",
+    wordsPerRequest: "3,000",
     monthly: {
       price: "$39.99",
       productId: "e0695915-5358-4e04-a6b1-35fc47f8d388"
